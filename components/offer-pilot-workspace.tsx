@@ -17,9 +17,10 @@ import { useMemo, useState } from "react";
 import { analyzeJobDescription } from "@/lib/ai/analyze-jd";
 import { generateInterviewPrep } from "@/lib/ai/interview-questions";
 import { matchResumeToJd } from "@/lib/ai/match-resume";
+import { createTailoredResumeVersion } from "@/lib/ai/resume-version";
 import { rewriteProjectForJd } from "@/lib/ai/rewrite-project";
 import { seedJobDescriptions, seedProfile } from "@/lib/domain/seed-data";
-import type { JobDescription, Project, UserProfile } from "@/lib/domain/types";
+import type { JobDescription, Project, ResumeVersion, UserProfile } from "@/lib/domain/types";
 import { ScoreCard } from "./ui/score-card";
 
 type TabId = "dashboard" | "jd" | "optimizer" | "interview" | "profile";
@@ -113,6 +114,7 @@ export function OfferPilotWorkspace() {
   const [activeTab, setActiveTab] = useState<TabId>("dashboard");
   const [profile, setProfile] = useState(seedProfile);
   const [jobs, setJobs] = useState<JobDescription[]>(seedJobDescriptions);
+  const [versions, setVersions] = useState<ResumeVersion[]>([]);
   const [activeJobId, setActiveJobId] = useState(seedJobDescriptions[0].id);
   const [draftJob, setDraftJob] = useState({
     company: "Acme AI",
@@ -129,6 +131,7 @@ export function OfferPilotWorkspace() {
 
   const averageMatch = Math.round(jobs.reduce((sum, job) => sum + matchResumeToJd(profile, job).total, 0) / jobs.length);
   const missingCount = match.missingKeywords.length;
+  const relatedVersions = versions.filter((version) => version.jdId === activeJob.id);
   const prepCount =
     prep.technicalQuestions.length + prep.projectQuestions.length + prep.behaviorQuestions.length + prep.englishQuestions.length;
 
@@ -152,6 +155,16 @@ export function OfferPilotWorkspace() {
       );
       return next;
     });
+  }
+
+  function createVersionFromRewrite() {
+    const version = createTailoredResumeVersion({
+      profile,
+      jd: activeJob,
+      project: activeProject,
+      bullets: rewrite.bullets,
+    });
+    setVersions((current) => [version, ...current]);
   }
 
   return (
@@ -198,7 +211,7 @@ export function OfferPilotWorkspace() {
                 <ScoreCard label="已分析 JD" value={jobs.length} detail="当前保存在本地状态中的岗位描述" tone="blue" />
                 <ScoreCard label="平均匹配度" value={averageMatch} detail="基于经历库和全部 JD 的规则评分" />
                 <ScoreCard label="待补关键词" value={missingCount} detail="当前选中 JD 中尚未覆盖的关键词" tone="amber" />
-                <ScoreCard label="面试题" value={prepCount} detail="按当前 JD 生成的准备问题数量" tone="blue" />
+                <ScoreCard label="定制版本" value={versions.length} detail="已基于 JD 生成的本地简历版本" tone="blue" />
               </div>
 
               <Panel>
@@ -375,6 +388,13 @@ export function OfferPilotWorkspace() {
                     <PenLine size={16} />
                     应用建议
                   </button>
+                  <button
+                    className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-white transition hover:bg-ink/90"
+                    onClick={createVersionFromRewrite}
+                  >
+                    <Sparkles size={16} />
+                    生成定制版
+                  </button>
                 </div>
                 <div className="mt-5 grid gap-4 lg:grid-cols-2">
                   <div className="rounded-lg border border-line p-4">
@@ -406,6 +426,37 @@ export function OfferPilotWorkspace() {
                         <li key={item}>{item}</li>
                       ))}
                     </ul>
+                  </div>
+                </div>
+                <div className="mt-5 rounded-lg border border-line p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-ink">当前 JD 的定制版本</p>
+                      <p className="mt-1 text-xs text-muted">生成版本会保存为本地状态，后续阶段接入数据库持久化。</p>
+                    </div>
+                    <Pill tone={relatedVersions.length ? "green" : "neutral"}>{relatedVersions.length} 个版本</Pill>
+                  </div>
+                  <div className="mt-4 grid gap-3">
+                    {relatedVersions.length ? (
+                      relatedVersions.map((version) => (
+                        <div className="rounded-md border border-line bg-white p-3" key={version.id}>
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="text-sm font-bold text-ink">{version.name}</p>
+                              <p className="mt-1 text-xs text-muted">
+                                {version.targetCompany} · {version.targetRole} · {version.updatedAt}
+                              </p>
+                            </div>
+                            <Pill tone={version.matchScore.total >= 75 ? "green" : "amber"}>
+                              匹配 {version.matchScore.total}
+                            </Pill>
+                          </div>
+                          <p className="mt-3 text-sm leading-6 text-muted">{version.content.summary}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted">还没有为当前 JD 生成定制版本。</p>
+                    )}
                   </div>
                 </div>
               </Panel>
@@ -513,6 +564,9 @@ export function OfferPilotWorkspace() {
                   <div className="rounded-md border border-line p-3">项目 {match.projectRelevance}/25</div>
                   <div className="rounded-md border border-line p-3">关键词 {match.keywordCoverage}/20</div>
                   <div className="rounded-md border border-line p-3">ATS {match.atsFriendliness}/15</div>
+                </div>
+                <div className="rounded-md border border-line p-3 text-xs text-muted">
+                  当前 JD 已生成 {relatedVersions.length} 个定制简历版本。
                 </div>
               </div>
             </Panel>
