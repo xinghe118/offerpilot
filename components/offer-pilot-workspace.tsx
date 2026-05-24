@@ -46,6 +46,11 @@ function Pill({ children, tone = "neutral" }: { children: React.ReactNode; tone?
   return <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${classes}`}>{children}</span>;
 }
 
+function PriorityPill({ priority }: { priority: "high" | "medium" | "low" }) {
+  const label = priority === "high" ? "高优先级" : priority === "medium" ? "中优先级" : "低优先级";
+  return <Pill tone={priority === "high" ? "amber" : priority === "medium" ? "green" : "neutral"}>{label}</Pill>;
+}
+
 function Panel({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <section className={`rounded-lg border border-line bg-white p-5 ${className}`}>{children}</section>;
 }
@@ -233,14 +238,17 @@ export function OfferPilotWorkspace() {
               <div className="grid gap-4 lg:grid-cols-2">
                 <Panel>
                   <SectionHeader title="下一步动作" detail="第一版聚焦优化材料，不做投递 Kanban。" />
-                  <ul className="mt-4 space-y-3 text-sm leading-6 text-muted">
-                    {match.suggestions.slice(0, 3).map((suggestion) => (
-                      <li className="flex gap-2" key={suggestion}>
-                        <CheckCircle2 className="mt-1 shrink-0 text-accent" size={16} />
-                        {suggestion}
-                      </li>
+                  <div className="mt-4 space-y-3">
+                    {match.suggestedActions.slice(0, 3).map((action) => (
+                      <div className="rounded-md border border-line p-3" key={action.id}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-bold text-ink">{action.target}</p>
+                          <PriorityPill priority={action.priority} />
+                        </div>
+                        <p className="mt-2 text-sm leading-6 text-muted">{action.reason}</p>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </Panel>
                 <Panel>
                   <SectionHeader title="岗位重点" detail="从 JD 中提取，后续接入真实 AI 后会更精细。" />
@@ -301,6 +309,25 @@ export function OfferPilotWorkspace() {
                         <Pill key={keyword}>{keyword}</Pill>
                       ))}
                     </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted">软技能 / 工作方式</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {activeJob.softSkills.map((keyword) => (
+                        <Pill key={keyword}>{keyword}</Pill>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted">职责总结</p>
+                    <ul className="mt-2 space-y-2 text-sm leading-6 text-muted">
+                      {activeJob.responsibilities.map((item) => (
+                        <li className="flex gap-2" key={item}>
+                          <ListChecks className="mt-1 shrink-0 text-accent" size={15} />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-muted">简历应强调</p>
@@ -511,6 +538,35 @@ export function OfferPilotWorkspace() {
                   <p className="text-sm text-muted">当前 JD 关键词覆盖较完整。</p>
                 )}
               </div>
+            </Panel>
+            <Panel>
+              <SectionHeader title="具体修改建议" />
+              <div className="mt-4 space-y-3">
+                {match.suggestedActions.map((action) => (
+                  <div className="rounded-md border border-line p-3" key={action.id}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-ink">{action.target}</p>
+                      <PriorityPill priority={action.priority} />
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-muted">{action.recommendedText}</p>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+            <Panel>
+              <SectionHeader title="ATS 友好检查" />
+              <ul className="mt-4 space-y-3 text-sm leading-6 text-muted">
+                {match.atsChecks.map((check) => (
+                  <li className="flex gap-2" key={check.id}>
+                    <CheckCircle2 className={`mt-1 shrink-0 ${check.passed ? "text-accent" : "text-amber"}`} size={15} />
+                    <span>
+                      <span className="font-semibold text-ink">{check.label}</span>
+                      <br />
+                      {check.detail}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </Panel>
             <Panel>
               <SectionHeader title="产品化阶段" />

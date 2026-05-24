@@ -51,10 +51,26 @@ export type JobDescription = {
   seniority?: string;
   requiredSkills: string[];
   niceToHave: string[];
+  softSkills: string[];
   responsibilities: string[];
   keywords: string[];
   emphasis: string[];
   createdAt: string;
+};
+
+export type MatchSuggestion = {
+  id: string;
+  priority: "high" | "medium" | "low";
+  target: string;
+  reason: string;
+  recommendedText: string;
+};
+
+export type AtsCheck = {
+  id: string;
+  label: string;
+  passed: boolean;
+  detail: string;
 };
 
 export type MatchScore = {
@@ -67,6 +83,8 @@ export type MatchScore = {
   matchedKeywords: string[];
   missingKeywords: string[];
   suggestions: string[];
+  suggestedActions: MatchSuggestion[];
+  atsChecks: AtsCheck[];
 };
 
 export type ResumeVersion = {
