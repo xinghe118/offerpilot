@@ -117,3 +117,19 @@ export type InterviewPrep = {
   questionsToAsk: string[];
   createdAt: string;
 };
+
+export type GitHubRepoAnalysis = {
+  repoUrl: string;
+  owner: string;
+  name: string;
+  description: string;
+  stars: number;
+  primaryLanguage: string;
+  techStack: string[];
+  features: string[];
+  architectureSummary: string;
+  readmeQuality: string;
+  resumeBullets: string[];
+  interviewQuestions: string[];
+  analyzedAt: string;
+};

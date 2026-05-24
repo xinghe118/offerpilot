@@ -31,6 +31,8 @@ AI API routes are prepared with a local rule-based provider by default. See `doc
 
 PDF export starts with a print-ready resume route. See `docs/PDF_EXPORT.md`.
 
+GitHub repository analysis is available through the workspace and `POST /api/github/analyze-repo`. See `docs/GITHUB_ANALYZER.md`.
+
 Later productization stages include:
 
 - Database login and multi-user saved data.

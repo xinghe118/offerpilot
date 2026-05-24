@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FileSearch,
   Gauge,
+  Github,
   Library,
   Lightbulb,
   ListChecks,
@@ -20,16 +21,17 @@ import { matchResumeToJd } from "@/lib/ai/match-resume";
 import { createTailoredResumeVersion } from "@/lib/ai/resume-version";
 import { rewriteProjectForJd } from "@/lib/ai/rewrite-project";
 import { seedJobDescriptions, seedProfile } from "@/lib/domain/seed-data";
-import type { InterviewPrep, JobDescription, Project, ResumeVersion, UserProfile } from "@/lib/domain/types";
+import type { GitHubRepoAnalysis, InterviewPrep, JobDescription, Project, ResumeVersion, UserProfile } from "@/lib/domain/types";
 import { ScoreCard } from "./ui/score-card";
 
-type TabId = "dashboard" | "jd" | "optimizer" | "interview" | "profile";
+type TabId = "dashboard" | "jd" | "optimizer" | "interview" | "github" | "profile";
 
 const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<{ size?: number }> }> = [
   { id: "dashboard", label: "工作台", icon: Gauge },
   { id: "jd", label: "JD 分析", icon: FileSearch },
   { id: "optimizer", label: "简历优化", icon: PenLine },
   { id: "interview", label: "面试准备", icon: BookOpenCheck },
+  { id: "github", label: "GitHub 分析", icon: Github },
   { id: "profile", label: "经历库", icon: Library },
 ];
 
@@ -116,6 +118,10 @@ export function OfferPilotWorkspace() {
   const [jobs, setJobs] = useState<JobDescription[]>(seedJobDescriptions);
   const [versions, setVersions] = useState<ResumeVersion[]>([]);
   const [prepDrafts, setPrepDrafts] = useState<Record<string, InterviewPrep>>({});
+  const [repoUrl, setRepoUrl] = useState("https://github.com/xinghe118/offerpilot");
+  const [repoAnalysis, setRepoAnalysis] = useState<GitHubRepoAnalysis | null>(null);
+  const [repoAnalysisError, setRepoAnalysisError] = useState("");
+  const [isAnalyzingRepo, setIsAnalyzingRepo] = useState(false);
   const [activeJobId, setActiveJobId] = useState(seedJobDescriptions[0].id);
   const [draftJob, setDraftJob] = useState({
     company: "Acme AI",
@@ -207,6 +213,31 @@ export function OfferPilotWorkspace() {
         },
       };
     });
+  }
+
+  async function analyzeRepo() {
+    setIsAnalyzingRepo(true);
+    setRepoAnalysisError("");
+    try {
+      const response = await fetch("/api/github/analyze-repo", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ repoUrl }),
+      });
+
+      const data = (await response.json()) as GitHubRepoAnalysis | { error?: string };
+      if (!response.ok) {
+        throw new Error("error" in data ? data.error : "仓库分析失败。");
+      }
+
+      setRepoAnalysis(data as GitHubRepoAnalysis);
+    } catch (error) {
+      setRepoAnalysisError(error instanceof Error ? error.message : "仓库分析失败。");
+    } finally {
+      setIsAnalyzingRepo(false);
+    }
   }
 
   const allPrepQuestions = [
@@ -590,6 +621,88 @@ export function OfferPilotWorkspace() {
                   ))}
                 </div>
               </Panel>
+            </div>
+          )}
+
+          {activeTab === "github" && (
+            <div className="space-y-5">
+              <Panel>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <SectionHeader
+                    title="GitHub 项目分析器"
+                    detail="输入公开仓库 URL，生成技术栈、README 质量反馈、简历亮点和面试问题。"
+                  />
+                  <button
+                    className="inline-flex h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
+                    onClick={analyzeRepo}
+                    disabled={isAnalyzingRepo}
+                  >
+                    <Github size={16} />
+                    {isAnalyzingRepo ? "分析中" : "分析仓库"}
+                  </button>
+                </div>
+                <div className="mt-4">
+                  <Input label="GitHub 仓库 URL" value={repoUrl} onChange={setRepoUrl} />
+                </div>
+                {repoAnalysisError ? (
+                  <div className="mt-4 rounded-md border border-danger/20 bg-danger/5 p-3 text-sm leading-6 text-danger">
+                    {repoAnalysisError}
+                  </div>
+                ) : null}
+              </Panel>
+
+              {repoAnalysis ? (
+                <>
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <ScoreCard label="Stars" value={repoAnalysis.stars} detail={repoAnalysis.name} tone="blue" />
+                    <ScoreCard label="技术栈" value={repoAnalysis.techStack.length} detail={repoAnalysis.primaryLanguage} tone="green" />
+                    <ScoreCard label="功能线索" value={repoAnalysis.features.length} detail="来自 README 摘要" tone="amber" />
+                    <ScoreCard label="面试题" value={repoAnalysis.interviewQuestions.length} detail="仓库定制问题" tone="blue" />
+                  </div>
+
+                  <Panel>
+                    <SectionHeader title={`${repoAnalysis.owner}/${repoAnalysis.name}`} detail={repoAnalysis.description} />
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {repoAnalysis.techStack.map((item) => (
+                        <Pill tone="green" key={item}>
+                          {item}
+                        </Pill>
+                      ))}
+                    </div>
+                    <p className="mt-4 text-sm leading-6 text-muted">{repoAnalysis.architectureSummary}</p>
+                    <p className="mt-3 rounded-md border border-line bg-canvas p-3 text-sm leading-6 text-muted">{repoAnalysis.readmeQuality}</p>
+                  </Panel>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <Panel>
+                      <SectionHeader title="可写进简历的亮点" />
+                      <ul className="mt-4 space-y-3 text-sm leading-6 text-muted">
+                        {repoAnalysis.resumeBullets.map((item) => (
+                          <li className="flex gap-2" key={item}>
+                            <Sparkles className="mt-1 shrink-0 text-accent" size={15} />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </Panel>
+                    <Panel>
+                      <SectionHeader title="可能被问的问题" />
+                      <ul className="mt-4 space-y-3 text-sm leading-6 text-muted">
+                        {repoAnalysis.interviewQuestions.map((item) => (
+                          <li className="flex gap-2" key={item}>
+                            <Brain className="mt-1 shrink-0 text-accent" size={15} />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </Panel>
+                  </div>
+                </>
+              ) : (
+                <Panel>
+                  <SectionHeader title="等待分析" detail="分析结果会展示技术栈、项目结构摘要、README 质量、简历 bullet 和面试题。" />
+                </Panel>
+              )}
             </div>
           )}
 
