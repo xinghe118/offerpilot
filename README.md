@@ -27,6 +27,8 @@ Authentication is optional for the local MVP. Copy `.env.example` to `.env.local
 
 Database persistence is prepared but not required for the local MVP. See `docs/DATABASE.md` for setup and repository boundaries.
 
+AI API routes are prepared with a local rule-based provider by default. See `docs/AI.md` for provider and route details.
+
 Later productization stages include:
 
 - Database login and multi-user saved data.
