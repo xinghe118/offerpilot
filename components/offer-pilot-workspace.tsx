@@ -20,7 +20,7 @@ import { matchResumeToJd } from "@/lib/ai/match-resume";
 import { createTailoredResumeVersion } from "@/lib/ai/resume-version";
 import { rewriteProjectForJd } from "@/lib/ai/rewrite-project";
 import { seedJobDescriptions, seedProfile } from "@/lib/domain/seed-data";
-import type { JobDescription, Project, ResumeVersion, UserProfile } from "@/lib/domain/types";
+import type { InterviewPrep, JobDescription, Project, ResumeVersion, UserProfile } from "@/lib/domain/types";
 import { ScoreCard } from "./ui/score-card";
 
 type TabId = "dashboard" | "jd" | "optimizer" | "interview" | "profile";
@@ -115,6 +115,7 @@ export function OfferPilotWorkspace() {
   const [profile, setProfile] = useState(seedProfile);
   const [jobs, setJobs] = useState<JobDescription[]>(seedJobDescriptions);
   const [versions, setVersions] = useState<ResumeVersion[]>([]);
+  const [prepDrafts, setPrepDrafts] = useState<Record<string, InterviewPrep>>({});
   const [activeJobId, setActiveJobId] = useState(seedJobDescriptions[0].id);
   const [draftJob, setDraftJob] = useState({
     company: "Acme AI",
@@ -127,7 +128,8 @@ export function OfferPilotWorkspace() {
   const activeProject = profile.projects.find((project) => project.id === activeProjectId) ?? profile.projects[0];
   const match = useMemo(() => matchResumeToJd(profile, activeJob), [profile, activeJob]);
   const rewrite = useMemo(() => rewriteProjectForJd(activeProject, activeJob), [activeProject, activeJob]);
-  const prep = useMemo(() => generateInterviewPrep(profile, activeJob), [profile, activeJob]);
+  const generatedPrep = useMemo(() => generateInterviewPrep(profile, activeJob), [profile, activeJob]);
+  const prep = prepDrafts[activeJob.id] ?? generatedPrep;
 
   const averageMatch = Math.round(jobs.reduce((sum, job) => sum + matchResumeToJd(profile, job).total, 0) / jobs.length);
   const missingCount = match.missingKeywords.length;
@@ -166,6 +168,55 @@ export function OfferPilotWorkspace() {
     });
     setVersions((current) => [version, ...current]);
   }
+
+  function ensurePrepDraft() {
+    setPrepDrafts((current) => (current[activeJob.id] ? current : { ...current, [activeJob.id]: generatedPrep }));
+  }
+
+  function updateQuestionDraft(questionId: string, answerDraft: string) {
+    setPrepDrafts((current) => {
+      const base = current[activeJob.id] ?? generatedPrep;
+      const updateGroup = (items: typeof base.technicalQuestions) =>
+        items.map((item) => (item.id === questionId ? { ...item, answerDraft } : item));
+      return {
+        ...current,
+        [activeJob.id]: {
+          ...base,
+          technicalQuestions: updateGroup(base.technicalQuestions),
+          projectQuestions: updateGroup(base.projectQuestions),
+          behaviorQuestions: updateGroup(base.behaviorQuestions),
+          englishQuestions: updateGroup(base.englishQuestions),
+        },
+      };
+    });
+  }
+
+  function togglePracticed(questionId: string) {
+    setPrepDrafts((current) => {
+      const base = current[activeJob.id] ?? generatedPrep;
+      const updateGroup = (items: typeof base.technicalQuestions) =>
+        items.map((item) => (item.id === questionId ? { ...item, practiced: !item.practiced } : item));
+      return {
+        ...current,
+        [activeJob.id]: {
+          ...base,
+          technicalQuestions: updateGroup(base.technicalQuestions),
+          projectQuestions: updateGroup(base.projectQuestions),
+          behaviorQuestions: updateGroup(base.behaviorQuestions),
+          englishQuestions: updateGroup(base.englishQuestions),
+        },
+      };
+    });
+  }
+
+  const allPrepQuestions = [
+    ...prep.technicalQuestions,
+    ...prep.projectQuestions,
+    ...prep.behaviorQuestions,
+    ...prep.englishQuestions,
+  ];
+  const practicedCount = allPrepQuestions.filter((item) => item.practiced).length;
+  const draftedCount = allPrepQuestions.filter((item) => item.answerDraft.trim().length > 0).length;
 
   return (
     <main className="min-h-screen bg-canvas">
@@ -466,10 +517,24 @@ export function OfferPilotWorkspace() {
           {activeTab === "interview" && (
             <div className="space-y-5">
               <Panel>
-                <SectionHeader title="面试准备" detail={`基于 ${activeJob.company} ${activeJob.role} 和当前经历库生成。`} />
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <SectionHeader title="面试准备" detail={`基于 ${activeJob.company} ${activeJob.role} 和当前经历库生成。`} />
+                  <button
+                    className="inline-flex h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                    onClick={ensurePrepDraft}
+                  >
+                    <BookOpenCheck size={16} />
+                    保存为草稿
+                  </button>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <ScoreCard label="问题总数" value={allPrepQuestions.length} detail="技术、项目、行为和英文问题" tone="blue" />
+                  <ScoreCard label="已写草稿" value={draftedCount} detail="已有答案草稿的问题" tone={draftedCount ? "green" : "amber"} />
+                  <ScoreCard label="已练习" value={practicedCount} detail="标记为已练习的问题" tone={practicedCount ? "green" : "amber"} />
+                </div>
                 <p className="mt-4 rounded-md border border-line bg-canvas p-4 text-sm leading-6 text-ink">{prep.selfIntroduction}</p>
               </Panel>
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4">
                 {[
                   ["技术问题", prep.technicalQuestions],
                   ["项目追问", prep.projectQuestions],
@@ -478,14 +543,33 @@ export function OfferPilotWorkspace() {
                 ].map(([title, questions]) => (
                   <Panel key={title as string}>
                     <SectionHeader title={title as string} />
-                    <ul className="mt-4 space-y-3 text-sm leading-6 text-muted">
+                    <div className="mt-4 grid gap-3 lg:grid-cols-2">
                       {(questions as typeof prep.technicalQuestions).map((item) => (
-                        <li className="flex gap-2" key={item.id}>
-                          <Brain className="mt-1 shrink-0 text-accent" size={15} />
-                          {item.question}
-                        </li>
+                        <div className="rounded-lg border border-line p-4" key={item.id}>
+                          <div className="flex items-start gap-2">
+                            <Brain className="mt-1 shrink-0 text-accent" size={15} />
+                            <p className="text-sm font-semibold leading-6 text-ink">{item.question}</p>
+                          </div>
+                          <textarea
+                            className="mt-3 min-h-24 w-full resize-none rounded-md border border-line bg-white px-3 py-2 text-sm leading-6 text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+                            placeholder="写下你的回答要点、项目例子或需要补充的数据..."
+                            value={item.answerDraft}
+                            onChange={(event) => updateQuestionDraft(item.id, event.target.value)}
+                          />
+                          <button
+                            className={`mt-3 inline-flex h-9 items-center gap-2 rounded-md border px-3 text-xs font-semibold transition ${
+                              item.practiced
+                                ? "border-accent bg-accent/10 text-accent"
+                                : "border-line bg-white text-muted hover:border-accent hover:text-ink"
+                            }`}
+                            onClick={() => togglePracticed(item.id)}
+                          >
+                            <CheckCircle2 size={14} />
+                            {item.practiced ? "已练习" : "标记已练习"}
+                          </button>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </Panel>
                 ))}
               </div>
