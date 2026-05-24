@@ -25,6 +25,8 @@ npm run dev
 
 Authentication is optional for the local MVP. Copy `.env.example` to `.env.local` and set `AUTH_REQUIRED=true` only after configuring `DATABASE_URL`, `AUTH_SECRET`, and at least one OAuth provider.
 
+Database persistence is prepared but not required for the local MVP. See `docs/DATABASE.md` for setup and repository boundaries.
+
 Later productization stages include:
 
 - Database login and multi-user saved data.
