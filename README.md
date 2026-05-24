@@ -29,6 +29,8 @@ Database persistence is prepared but not required for the local MVP. See `docs/D
 
 AI API routes are prepared with a local rule-based provider by default. See `docs/AI.md` for provider and route details.
 
+PDF export starts with a print-ready resume route. See `docs/PDF_EXPORT.md`.
+
 Later productization stages include:
 
 - Database login and multi-user saved data.

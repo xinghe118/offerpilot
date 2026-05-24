@@ -229,6 +229,13 @@ export function OfferPilotWorkspace() {
           <div className="flex items-center gap-2">
             <Pill tone="green">本地 MVP</Pill>
             <Pill>真实 AI / 数据库在后续阶段接入</Pill>
+            <a
+              className="inline-flex h-9 items-center rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink transition hover:border-accent"
+              href="/resume/print"
+              target="_blank"
+            >
+              打印简历
+            </a>
           </div>
         </div>
       </header>
