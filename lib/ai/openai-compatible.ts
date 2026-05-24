@@ -3,9 +3,12 @@ import type { InterviewQuestion, InterviewPrep, JobDescription, MatchScore } fro
 
 type JsonObject = Record<string, unknown>;
 
-function envOrDefault(name: string, fallback: string) {
-  return process.env[name]?.trim() || fallback;
-}
+export type RuntimeAiConfig = {
+  provider?: string;
+  baseUrl?: string;
+  apiKey?: string;
+  model?: string;
+};
 
 function asStringArray(value: unknown, fallback: string[]) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : fallback;
@@ -30,15 +33,15 @@ function asQuestionArray(value: unknown, fallback: InterviewQuestion[]) {
     }));
 }
 
-async function callOpenAiJson<T>(systemPrompt: string, userPayload: unknown): Promise<T> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.OPENAI_MODEL;
+async function callOpenAiJson<T>(systemPrompt: string, userPayload: unknown, runtimeConfig?: RuntimeAiConfig): Promise<T> {
+  const apiKey = runtimeConfig?.apiKey || process.env.OPENAI_API_KEY;
+  const model = runtimeConfig?.model || process.env.OPENAI_MODEL;
 
   if (!apiKey || !model) {
     throw new Error("OPENAI_API_KEY and OPENAI_MODEL are required when AI_PROVIDER=openai.");
   }
 
-  const baseUrl = envOrDefault("OPENAI_BASE_URL", "https://api.openai.com/v1").replace(/\/$/, "");
+  const baseUrl = (runtimeConfig?.baseUrl || process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -127,7 +130,7 @@ function mergeInterviewPrep(fallback: InterviewPrep, value: unknown): InterviewP
   };
 }
 
-export function createOpenAiCompatibleProvider(localProvider: AiProvider): AiProvider {
+export function createOpenAiCompatibleProvider(localProvider: AiProvider, runtimeConfig?: RuntimeAiConfig): AiProvider {
   return {
     async analyzeJd(input) {
       const fallback = await localProvider.analyzeJd(input);
@@ -135,6 +138,7 @@ export function createOpenAiCompatibleProvider(localProvider: AiProvider): AiPro
         const result = await callOpenAiJson<JsonObject>(
           "Analyze the job description and return strict JSON with company, role, seniority, requiredSkills, niceToHave, softSkills, responsibilities, keywords, and emphasis. Do not add unsupported claims.",
           input,
+          runtimeConfig,
         );
         return mergeJobDescription(input, fallback, result);
       } catch {
@@ -148,6 +152,7 @@ export function createOpenAiCompatibleProvider(localProvider: AiProvider): AiPro
         const result = await callOpenAiJson<JsonObject>(
           "Compare the profile against the JD. Return strict JSON with total, skills, projectRelevance, keywordCoverage, expressionQuality, atsFriendliness, matchedKeywords, missingKeywords, and suggestions. Do not fabricate experience.",
           input,
+          runtimeConfig,
         );
         return mergeMatchScore(fallback, result);
       } catch {
@@ -161,6 +166,7 @@ export function createOpenAiCompatibleProvider(localProvider: AiProvider): AiPro
         const result = await callOpenAiJson<JsonObject>(
           "Rewrite project resume bullets for the target JD. Return strict JSON with bullets and reasoning. Preserve facts and never invent metrics, dates, companies, or experience.",
           input,
+          runtimeConfig,
         );
         return {
           bullets: asStringArray(result.bullets, fallback.bullets),
@@ -177,6 +183,7 @@ export function createOpenAiCompatibleProvider(localProvider: AiProvider): AiPro
         const result = await callOpenAiJson<JsonObject>(
           "Generate interview preparation from the profile and JD. Return strict JSON with technicalQuestions, projectQuestions, behaviorQuestions, englishQuestions, selfIntroduction, and questionsToAsk. Each question item must include id and question.",
           input,
+          runtimeConfig,
         );
         return mergeInterviewPrep(fallback, result);
       } catch {

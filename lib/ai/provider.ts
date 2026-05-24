@@ -1,7 +1,7 @@
 import { analyzeJobDescription } from "@/lib/ai/analyze-jd";
 import { generateInterviewPrep } from "@/lib/ai/interview-questions";
 import { matchResumeToJd } from "@/lib/ai/match-resume";
-import { createOpenAiCompatibleProvider } from "@/lib/ai/openai-compatible";
+import { createOpenAiCompatibleProvider, type RuntimeAiConfig } from "@/lib/ai/openai-compatible";
 import { rewriteProjectForJd } from "@/lib/ai/rewrite-project";
 import type { JobDescription, Project, UserProfile } from "@/lib/domain/types";
 
@@ -44,15 +44,15 @@ const localProvider: AiProvider = {
   },
 };
 
-export function getAiProvider(): AiProvider {
-  const provider = process.env.AI_PROVIDER ?? "local";
+export function getAiProvider(runtimeConfig?: RuntimeAiConfig): AiProvider {
+  const provider = runtimeConfig?.provider || process.env.AI_PROVIDER || "local";
 
   if (provider === "local") {
     return localProvider;
   }
 
   if (provider === "openai") {
-    return createOpenAiCompatibleProvider(localProvider);
+    return createOpenAiCompatibleProvider(localProvider, runtimeConfig);
   }
 
   return localProvider;

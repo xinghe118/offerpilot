@@ -30,6 +30,24 @@ OPENAI_MODEL="..."
 
 The OpenAI-compatible provider uses chat completions with JSON output. If the remote call fails or required environment variables are missing, the provider falls back to the local deterministic result so the app remains usable.
 
+## Web Configuration
+
+The local MVP also includes a Settings tab in the web UI. It can configure:
+
+- Provider.
+- OpenAI-compatible base URL.
+- API key.
+- Model.
+
+This browser-based configuration is stored in `localStorage` and sent to OfferPilot API routes with each request. It is useful for local testing, but it is not the final multi-user storage model.
+
+Production storage should:
+
+- Store keys server-side only.
+- Encrypt provider secrets.
+- Scope provider settings by `user_id`.
+- Never expose saved keys back to the browser after initial entry.
+
 ## API Routes
 
 ```http

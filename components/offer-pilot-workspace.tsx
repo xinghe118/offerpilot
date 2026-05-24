@@ -11,11 +11,11 @@ import {
   Lightbulb,
   ListChecks,
   PenLine,
+  Settings,
   Sparkles,
   Target,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { analyzeJobDescription } from "@/lib/ai/analyze-jd";
+import { useEffect, useMemo, useState } from "react";
 import { generateInterviewPrep } from "@/lib/ai/interview-questions";
 import { matchResumeToJd } from "@/lib/ai/match-resume";
 import { createTailoredResumeVersion } from "@/lib/ai/resume-version";
@@ -24,7 +24,7 @@ import { seedJobDescriptions, seedProfile } from "@/lib/domain/seed-data";
 import type { GitHubRepoAnalysis, InterviewPrep, JobDescription, Project, ResumeVersion, UserProfile } from "@/lib/domain/types";
 import { ScoreCard } from "./ui/score-card";
 
-type TabId = "dashboard" | "jd" | "optimizer" | "interview" | "github" | "profile";
+type TabId = "dashboard" | "jd" | "optimizer" | "interview" | "github" | "profile" | "settings";
 
 const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<{ size?: number }> }> = [
   { id: "dashboard", label: "工作台", icon: Gauge },
@@ -33,7 +33,45 @@ const tabs: Array<{ id: TabId; label: string; icon: React.ComponentType<{ size?:
   { id: "interview", label: "面试准备", icon: BookOpenCheck },
   { id: "github", label: "GitHub 分析", icon: Github },
   { id: "profile", label: "经历库", icon: Library },
+  { id: "settings", label: "设置", icon: Settings },
 ];
+
+type WebAiConfig = {
+  provider: "local" | "openai";
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+};
+
+const defaultWebAiConfig: WebAiConfig = {
+  provider: "local",
+  baseUrl: "https://api.openai.com/v1",
+  apiKey: "",
+  model: "",
+};
+
+function loadWebAiConfig(): WebAiConfig {
+  if (typeof window === "undefined") {
+    return defaultWebAiConfig;
+  }
+
+  try {
+    const raw = window.localStorage.getItem("offerpilot.aiConfig");
+    if (!raw) {
+      return defaultWebAiConfig;
+    }
+    return {
+      ...defaultWebAiConfig,
+      ...(JSON.parse(raw) as Partial<WebAiConfig>),
+    };
+  } catch {
+    return defaultWebAiConfig;
+  }
+}
+
+function isJobDescription(value: JobDescription | { error?: string }): value is JobDescription {
+  return "id" in value && "company" in value && "rawText" in value;
+}
 
 function cloneProfile(profile: UserProfile): UserProfile {
   return JSON.parse(JSON.stringify(profile)) as UserProfile;
@@ -115,6 +153,8 @@ function Input({
 export function OfferPilotWorkspace() {
   const [activeTab, setActiveTab] = useState<TabId>("dashboard");
   const [profile, setProfile] = useState(seedProfile);
+  const [aiConfig, setAiConfig] = useState<WebAiConfig>(defaultWebAiConfig);
+  const [settingsSaved, setSettingsSaved] = useState(false);
   const [jobs, setJobs] = useState<JobDescription[]>(seedJobDescriptions);
   const [versions, setVersions] = useState<ResumeVersion[]>([]);
   const [prepDrafts, setPrepDrafts] = useState<Record<string, InterviewPrep>>({});
@@ -143,8 +183,32 @@ export function OfferPilotWorkspace() {
   const prepCount =
     prep.technicalQuestions.length + prep.projectQuestions.length + prep.behaviorQuestions.length + prep.englishQuestions.length;
 
-  function analyzeDraftJob() {
-    const analyzed = analyzeJobDescription(draftJob);
+  useEffect(() => {
+    setAiConfig(loadWebAiConfig());
+  }, []);
+
+  function saveAiConfig(nextConfig = aiConfig) {
+    window.localStorage.setItem("offerpilot.aiConfig", JSON.stringify(nextConfig));
+    setSettingsSaved(true);
+    window.setTimeout(() => setSettingsSaved(false), 1800);
+  }
+
+  async function analyzeDraftJob() {
+    const response = await fetch("/api/ai/analyze-jd", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ...draftJob,
+        aiConfig,
+      }),
+    });
+    const analyzed = (await response.json()) as JobDescription | { error?: string };
+    if (!response.ok || !isJobDescription(analyzed)) {
+      return;
+    }
+
     setJobs((current) => [analyzed, ...current]);
     setActiveJobId(analyzed.id);
     setActiveTab("jd");
@@ -752,6 +816,58 @@ export function OfferPilotWorkspace() {
                     </div>
                   ))}
                 </div>
+              </Panel>
+            </div>
+          )}
+
+          {activeTab === "settings" && (
+            <div className="space-y-5">
+              <Panel>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <SectionHeader
+                    title="AI 接口设置"
+                    detail="本地 MVP 会把配置保存在浏览器 localStorage。后续多用户版应改为服务端加密保存。"
+                  />
+                  <button
+                    className="inline-flex h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                    onClick={() => saveAiConfig()}
+                  >
+                    <Settings size={16} />
+                    保存设置
+                  </button>
+                </div>
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <label className="grid gap-2">
+                    <span className="text-xs font-semibold text-muted">Provider</span>
+                    <select
+                      className="h-10 rounded-md border border-line bg-white px-3 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+                      value={aiConfig.provider}
+                      onChange={(event) => setAiConfig((current) => ({ ...current, provider: event.target.value as WebAiConfig["provider"] }))}
+                    >
+                      <option value="local">Local rules</option>
+                      <option value="openai">OpenAI-compatible</option>
+                    </select>
+                  </label>
+                  <Input
+                    label="Model"
+                    value={aiConfig.model}
+                    onChange={(value) => setAiConfig((current) => ({ ...current, model: value }))}
+                  />
+                  <Input
+                    label="Base URL"
+                    value={aiConfig.baseUrl}
+                    onChange={(value) => setAiConfig((current) => ({ ...current, baseUrl: value }))}
+                  />
+                  <Input
+                    label="API Key"
+                    value={aiConfig.apiKey}
+                    onChange={(value) => setAiConfig((current) => ({ ...current, apiKey: value }))}
+                  />
+                </div>
+                <div className="mt-5 rounded-md border border-line bg-canvas p-4 text-sm leading-6 text-muted">
+                  当前模式：{aiConfig.provider === "local" ? "本地规则，不需要 API Key。" : "OpenAI-compatible，请填写 Base URL、API Key 和 Model。远程失败会回退本地规则。"}
+                </div>
+                {settingsSaved ? <p className="mt-3 text-sm font-semibold text-accent">设置已保存到当前浏览器。</p> : null}
               </Panel>
             </div>
           )}
