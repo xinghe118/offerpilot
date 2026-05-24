@@ -4,7 +4,7 @@ import GitHub from "next-auth/providers/github";
 import Google from "next-auth/providers/google";
 import { prisma } from "@/lib/db/prisma";
 
-const providers = [];
+const providers: NextAuthOptions["providers"] = [];
 
 if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
   providers.push(
@@ -27,6 +27,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 export const authConfig = {
   adapter: PrismaAdapter(prisma),
   providers,
+  secret: process.env.AUTH_SECRET,
   pages: {
     signIn: "/login",
   },

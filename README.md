@@ -16,6 +16,15 @@ The first local MVP focuses on:
 - AI-style project bullet rewriting.
 - Interview preparation question generation.
 
+## Local Development
+
+```bash
+npm install
+npm run dev
+```
+
+Authentication is optional for the local MVP. Copy `.env.example` to `.env.local` and set `AUTH_REQUIRED=true` only after configuring `DATABASE_URL`, `AUTH_SECRET`, and at least one OAuth provider.
+
 Later productization stages include:
 
 - Database login and multi-user saved data.
