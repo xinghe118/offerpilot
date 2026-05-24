@@ -155,6 +155,8 @@ export function OfferPilotWorkspace() {
   const [profile, setProfile] = useState(seedProfile);
   const [aiConfig, setAiConfig] = useState<WebAiConfig>(defaultWebAiConfig);
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [aiTestResult, setAiTestResult] = useState("");
+  const [isTestingAi, setIsTestingAi] = useState(false);
   const [jobs, setJobs] = useState<JobDescription[]>(seedJobDescriptions);
   const [versions, setVersions] = useState<ResumeVersion[]>([]);
   const [prepDrafts, setPrepDrafts] = useState<Record<string, InterviewPrep>>({});
@@ -191,6 +193,29 @@ export function OfferPilotWorkspace() {
     window.localStorage.setItem("offerpilot.aiConfig", JSON.stringify(nextConfig));
     setSettingsSaved(true);
     window.setTimeout(() => setSettingsSaved(false), 1800);
+  }
+
+  async function testAiConnection() {
+    setIsTestingAi(true);
+    setAiTestResult("");
+    try {
+      const response = await fetch("/api/ai/test-connection", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ aiConfig }),
+      });
+      const result = (await response.json()) as { ok?: boolean; message?: string; sampleKeywords?: string[]; error?: string };
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error ?? "测试失败。");
+      }
+      setAiTestResult(`${result.message ?? "测试成功。"} 关键词：${result.sampleKeywords?.join("、") ?? "无"}`);
+    } catch (error) {
+      setAiTestResult(error instanceof Error ? error.message : "测试失败。");
+    } finally {
+      setIsTestingAi(false);
+    }
   }
 
   async function analyzeDraftJob() {
@@ -835,6 +860,14 @@ export function OfferPilotWorkspace() {
                     <Settings size={16} />
                     保存设置
                   </button>
+                  <button
+                    className="inline-flex h-10 items-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-semibold text-ink transition hover:border-accent disabled:opacity-60"
+                    onClick={testAiConnection}
+                    disabled={isTestingAi}
+                  >
+                    <Sparkles size={16} />
+                    {isTestingAi ? "测试中" : "测试连接"}
+                  </button>
                 </div>
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
                   <label className="grid gap-2">
@@ -868,6 +901,11 @@ export function OfferPilotWorkspace() {
                   当前模式：{aiConfig.provider === "local" ? "本地规则，不需要 API Key。" : "OpenAI-compatible，请填写 Base URL、API Key 和 Model。远程失败会回退本地规则。"}
                 </div>
                 {settingsSaved ? <p className="mt-3 text-sm font-semibold text-accent">设置已保存到当前浏览器。</p> : null}
+                {aiTestResult ? (
+                  <div className="mt-3 rounded-md border border-line bg-white p-3 text-sm leading-6 text-muted">
+                    {aiTestResult}
+                  </div>
+                ) : null}
               </Panel>
             </div>
           )}
