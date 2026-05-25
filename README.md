@@ -31,10 +31,11 @@ Completed:
 - First production polish pass for loading, error, and success feedback in key flows.
 - Workspace persistence API for loading and saving profile, analyzed JDs, tailored resume versions, and interview prep drafts.
 - Local email login path for testing multi-user saved data without OAuth setup.
+- Editable profile library for contact info, skills, education, work experience, and projects.
 
 Next planned stage:
 
-- Add user-facing CRUD controls for editing projects, skills, education, and custom resume sections instead of only editing seed fields.
+- Improve resume preview/export templates so edited profile data has a stronger printable presentation.
 
 ## Local Development
 

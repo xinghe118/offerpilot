@@ -84,6 +84,21 @@ function cloneProfile(profile: UserProfile): UserProfile {
   return JSON.parse(JSON.stringify(profile)) as UserProfile;
 }
 
+function csvToList(value: string) {
+  return value
+    .split(/[,\n，]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function listToCsv(value: string[]) {
+  return value.join("，");
+}
+
+function createId(prefix: string) {
+  return `${prefix}-${Date.now().toString(36)}`;
+}
+
 function Pill({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "green" | "amber" }) {
   const classes =
     tone === "green"
@@ -367,6 +382,131 @@ export function OfferPilotWorkspace() {
     setVersions((current) => [version, ...current]);
     setVersionNotice(`已生成：${version.name}`);
     window.setTimeout(() => setVersionNotice(""), 2200);
+  }
+
+  function addSkill() {
+    setProfile((current) => ({
+      ...current,
+      skills: [...current.skills, "新技能"],
+    }));
+  }
+
+  function updateSkill(index: number, value: string) {
+    setProfile((current) => ({
+      ...current,
+      skills: current.skills.map((skill, skillIndex) => (skillIndex === index ? value : skill)),
+    }));
+  }
+
+  function removeSkill(index: number) {
+    setProfile((current) => ({
+      ...current,
+      skills: current.skills.filter((_, skillIndex) => skillIndex !== index),
+    }));
+  }
+
+  function addEducation() {
+    setProfile((current) => ({
+      ...current,
+      education: [
+        ...current.education,
+        {
+          id: createId("edu"),
+          school: "学校名称",
+          degree: "学历",
+          major: "专业",
+          startDate: "2022.09",
+          endDate: "2026.06",
+          highlights: ["补充课程、项目或荣誉。"],
+        },
+      ],
+    }));
+  }
+
+  function updateEducation(id: string, patch: Partial<UserProfile["education"][number]>) {
+    setProfile((current) => ({
+      ...current,
+      education: current.education.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    }));
+  }
+
+  function removeEducation(id: string) {
+    setProfile((current) => ({
+      ...current,
+      education: current.education.filter((item) => item.id !== id),
+    }));
+  }
+
+  function addWorkExperience() {
+    setProfile((current) => ({
+      ...current,
+      experience: [
+        ...current.experience,
+        {
+          id: createId("work"),
+          company: "公司名称",
+          role: "岗位名称",
+          startDate: "2025.01",
+          endDate: "2025.06",
+          highlights: ["补充职责、技术动作和结果。"],
+        },
+      ],
+    }));
+  }
+
+  function updateWorkExperience(id: string, patch: Partial<UserProfile["experience"][number]>) {
+    setProfile((current) => ({
+      ...current,
+      experience: current.experience.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    }));
+  }
+
+  function removeWorkExperience(id: string) {
+    setProfile((current) => ({
+      ...current,
+      experience: current.experience.filter((item) => item.id !== id),
+    }));
+  }
+
+  function addProject() {
+    const projectId = createId("project");
+    setProfile((current) => ({
+      ...current,
+      projects: [
+        ...current.projects,
+        {
+          id: projectId,
+          name: "新项目",
+          role: "开发者",
+          techStack: ["TypeScript"],
+          features: ["核心功能"],
+          rawDescription: "描述项目背景、你负责的内容和业务结果。",
+          resumeBullets: ["补充可写进简历的项目 bullet。"],
+          interviewTalkingPoints: ["补充可能被问到的技术点。"],
+        },
+      ],
+    }));
+    setActiveProjectId(projectId);
+  }
+
+  function updateProject(id: string, patch: Partial<UserProfile["projects"][number]>) {
+    setProfile((current) => ({
+      ...current,
+      projects: current.projects.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    }));
+  }
+
+  function removeProject(id: string) {
+    setProfile((current) => {
+      const projects = current.projects.filter((item) => item.id !== id);
+      if (activeProjectId === id) {
+        setActiveProjectId(projects[0]?.id ?? "");
+      }
+      return {
+        ...current,
+        projects,
+      };
+    });
   }
 
   function ensurePrepDraft() {
@@ -928,12 +1068,37 @@ export function OfferPilotWorkspace() {
           {activeTab === "profile" && (
             <div className="space-y-5">
               <Panel>
-                <SectionHeader title="个人经历库" detail="这是 AI 改写和面试准备的事实来源。" />
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <SectionHeader title="个人经历库" detail="这是 AI 改写、JD 匹配和面试准备的事实来源。" />
+                  <button
+                    className="inline-flex h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                    onClick={saveWorkspace}
+                    disabled={isSavingWorkspace}
+                  >
+                    <CheckCircle2 size={16} />
+                    {isSavingWorkspace ? "保存中" : "保存经历库"}
+                  </button>
+                </div>
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <Input
                     label="姓名"
                     value={profile.name}
                     onChange={(value) => setProfile((current) => ({ ...current, name: value }))}
+                  />
+                  <Input
+                    label="邮箱"
+                    value={profile.email}
+                    onChange={(value) => setProfile((current) => ({ ...current, email: value }))}
+                  />
+                  <Input
+                    label="电话"
+                    value={profile.phone}
+                    onChange={(value) => setProfile((current) => ({ ...current, phone: value }))}
+                  />
+                  <Input
+                    label="城市"
+                    value={profile.location}
+                    onChange={(value) => setProfile((current) => ({ ...current, location: value }))}
                   />
                   <Input
                     label="目标岗位"
@@ -951,23 +1116,176 @@ export function OfferPilotWorkspace() {
                 </div>
               </Panel>
               <Panel>
-                <SectionHeader title="技能关键词" detail="后续真实 AI 会基于这些事实做重组，不应凭空增加经历。" />
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {profile.skills.map((skill) => (
-                    <Pill tone={activeJob.keywords.includes(skill) ? "green" : "neutral"} key={skill}>
-                      {skill}
-                    </Pill>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <SectionHeader title="技能关键词" detail="技能会参与 JD 匹配和简历版本生成。" />
+                  <button
+                    className="inline-flex h-9 items-center rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink transition hover:border-accent"
+                    onClick={addSkill}
+                  >
+                    新增技能
+                  </button>
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                  {profile.skills.map((skill, index) => (
+                    <div className="flex gap-2" key={`${skill}-${index}`}>
+                      <input
+                        className={`h-10 min-w-0 flex-1 rounded-md border px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15 ${
+                          activeJob.keywords.includes(skill) ? "border-accent bg-accent/5 text-accent" : "border-line bg-white text-ink"
+                        }`}
+                        value={skill}
+                        onChange={(event) => updateSkill(index, event.target.value)}
+                      />
+                      <button
+                        className="h-10 rounded-md border border-line bg-white px-3 text-xs font-semibold text-muted transition hover:border-danger hover:text-danger"
+                        onClick={() => removeSkill(index)}
+                      >
+                        删除
+                      </button>
+                    </div>
                   ))}
                 </div>
               </Panel>
               <Panel>
-                <SectionHeader title="项目库" />
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <SectionHeader title="教育经历" />
+                  <button
+                    className="inline-flex h-9 items-center rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink transition hover:border-accent"
+                    onClick={addEducation}
+                  >
+                    新增教育
+                  </button>
+                </div>
                 <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  {profile.education.map((item) => (
+                    <div className="rounded-lg border border-line p-4" key={item.id}>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <Input label="学校" value={item.school} onChange={(value) => updateEducation(item.id, { school: value })} />
+                        <Input label="学历" value={item.degree} onChange={(value) => updateEducation(item.id, { degree: value })} />
+                        <Input label="专业" value={item.major} onChange={(value) => updateEducation(item.id, { major: value })} />
+                        <Input label="时间" value={`${item.startDate} - ${item.endDate ?? "至今"}`} onChange={(value) => {
+                          const [startDate, endDate] = value.split("-").map((part) => part.trim());
+                          updateEducation(item.id, { startDate: startDate || item.startDate, endDate: endDate || undefined });
+                        }} />
+                      </div>
+                      <div className="mt-3">
+                        <TextArea
+                          label="亮点，逗号或换行分隔"
+                          rows={3}
+                          value={listToCsv(item.highlights)}
+                          onChange={(value) => updateEducation(item.id, { highlights: csvToList(value) })}
+                        />
+                      </div>
+                      <button
+                        className="mt-3 h-9 rounded-md border border-line bg-white px-3 text-xs font-semibold text-muted transition hover:border-danger hover:text-danger"
+                        onClick={() => removeEducation(item.id)}
+                      >
+                        删除教育
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+              <Panel>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <SectionHeader title="工作经历" />
+                  <button
+                    className="inline-flex h-9 items-center rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink transition hover:border-accent"
+                    onClick={addWorkExperience}
+                  >
+                    新增工作
+                  </button>
+                </div>
+                <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                  {profile.experience.map((item) => (
+                    <div className="rounded-lg border border-line p-4" key={item.id}>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <Input label="公司" value={item.company} onChange={(value) => updateWorkExperience(item.id, { company: value })} />
+                        <Input label="岗位" value={item.role} onChange={(value) => updateWorkExperience(item.id, { role: value })} />
+                        <Input label="开始时间" value={item.startDate} onChange={(value) => updateWorkExperience(item.id, { startDate: value })} />
+                        <Input label="结束时间" value={item.endDate ?? ""} onChange={(value) => updateWorkExperience(item.id, { endDate: value || undefined })} />
+                      </div>
+                      <div className="mt-3">
+                        <TextArea
+                          label="经历亮点，逗号或换行分隔"
+                          rows={4}
+                          value={listToCsv(item.highlights)}
+                          onChange={(value) => updateWorkExperience(item.id, { highlights: csvToList(value) })}
+                        />
+                      </div>
+                      <button
+                        className="mt-3 h-9 rounded-md border border-line bg-white px-3 text-xs font-semibold text-muted transition hover:border-danger hover:text-danger"
+                        onClick={() => removeWorkExperience(item.id)}
+                      >
+                        删除工作
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </Panel>
+              <Panel>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <SectionHeader title="项目库" detail="项目内容会直接影响 AI 改写、JD 匹配和面试问题。" />
+                  <button
+                    className="inline-flex h-9 items-center rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink transition hover:border-accent"
+                    onClick={addProject}
+                  >
+                    新增项目
+                  </button>
+                </div>
+                <div className="mt-4 grid gap-4">
                   {profile.projects.map((project) => (
                     <div className="rounded-lg border border-line p-4" key={project.id}>
-                      <h3 className="text-sm font-bold text-ink">{project.name}</h3>
-                      <p className="mt-1 text-xs text-muted">{project.role} · {project.techStack.join(" / ")}</p>
-                      <p className="mt-3 text-sm leading-6 text-muted">{project.rawDescription}</p>
+                      <div className="grid gap-3 lg:grid-cols-2">
+                        <Input label="项目名称" value={project.name} onChange={(value) => updateProject(project.id, { name: value })} />
+                        <Input label="角色" value={project.role} onChange={(value) => updateProject(project.id, { role: value })} />
+                        <Input
+                          label="技术栈，逗号分隔"
+                          value={listToCsv(project.techStack)}
+                          onChange={(value) => updateProject(project.id, { techStack: csvToList(value) })}
+                        />
+                        <Input
+                          label="功能点，逗号分隔"
+                          value={listToCsv(project.features)}
+                          onChange={(value) => updateProject(project.id, { features: csvToList(value) })}
+                        />
+                      </div>
+                      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+                        <TextArea
+                          label="原始描述"
+                          rows={5}
+                          value={project.rawDescription}
+                          onChange={(value) => updateProject(project.id, { rawDescription: value })}
+                        />
+                        <TextArea
+                          label="简历 bullet，逗号或换行分隔"
+                          rows={5}
+                          value={listToCsv(project.resumeBullets)}
+                          onChange={(value) => updateProject(project.id, { resumeBullets: csvToList(value) })}
+                        />
+                        <TextArea
+                          label="面试讲解点，逗号或换行分隔"
+                          rows={5}
+                          value={listToCsv(project.interviewTalkingPoints)}
+                          onChange={(value) => updateProject(project.id, { interviewTalkingPoints: csvToList(value) })}
+                        />
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          className="h-9 rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink transition hover:border-accent"
+                          onClick={() => {
+                            setActiveProjectId(project.id);
+                            setActiveTab("optimizer");
+                          }}
+                        >
+                          去优化
+                        </button>
+                        <button
+                          className="h-9 rounded-md border border-line bg-white px-3 text-xs font-semibold text-muted transition hover:border-danger hover:text-danger"
+                          onClick={() => removeProject(project.id)}
+                        >
+                          删除项目
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
