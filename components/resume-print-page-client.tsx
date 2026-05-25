@@ -6,26 +6,54 @@ import { seedProfile } from "@/lib/domain/seed-data";
 import type { UserProfile } from "@/lib/domain/types";
 import { ResumePrintView } from "@/components/resume-print-view";
 
-function loadPrintProfile() {
+type PrintSnapshot = {
+  profile: UserProfile;
+  sourceLabel: string;
+  targetCompany?: string;
+  targetRole?: string;
+  matchScore?: number;
+};
+
+const fallbackSnapshot: PrintSnapshot = {
+  profile: seedProfile,
+  sourceLabel: "基础经历库",
+};
+
+function loadPrintSnapshot() {
   try {
     const raw = window.localStorage.getItem("offerpilot.printProfile");
     if (!raw) {
-      return seedProfile;
+      return fallbackSnapshot;
     }
+    const parsed = JSON.parse(raw) as Partial<PrintSnapshot> | Partial<UserProfile>;
+    if ("profile" in parsed && parsed.profile) {
+      return {
+        ...fallbackSnapshot,
+        ...parsed,
+        profile: {
+          ...seedProfile,
+          ...parsed.profile,
+        },
+      };
+    }
+
     return {
-      ...seedProfile,
-      ...(JSON.parse(raw) as Partial<UserProfile>),
+      ...fallbackSnapshot,
+      profile: {
+        ...seedProfile,
+        ...(parsed as Partial<UserProfile>),
+      },
     };
   } catch {
-    return seedProfile;
+    return fallbackSnapshot;
   }
 }
 
 export function ResumePrintPageClient() {
-  const [profile, setProfile] = useState<UserProfile>(seedProfile);
+  const [snapshot, setSnapshot] = useState<PrintSnapshot>(fallbackSnapshot);
 
   useEffect(() => {
-    setProfile(loadPrintProfile());
+    setSnapshot(loadPrintSnapshot());
   }, []);
 
   return (
@@ -34,14 +62,24 @@ export function ResumePrintPageClient() {
         <div>
           <p className="text-xs font-bold uppercase tracking-0 text-accent">OfferPilot</p>
           <h1 className="text-lg font-bold text-ink">ATS 友好简历打印预览</h1>
-          <p className="mt-1 text-sm text-muted">优先使用工作台当前经历库快照，输出为可复制文本。</p>
+          <p className="mt-1 text-sm text-muted">
+            {snapshot.sourceLabel}
+            {snapshot.targetCompany ? ` · ${snapshot.targetCompany} ${snapshot.targetRole ?? ""}` : ""}
+            {typeof snapshot.matchScore === "number" ? ` · 匹配 ${snapshot.matchScore}` : ""}
+          </p>
         </div>
         <button className="inline-flex h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white" onClick={() => window.print()}>
           <Printer size={16} />
           打印 / 保存 PDF
         </button>
       </div>
-      <ResumePrintView profile={profile} />
+      <ResumePrintView
+        matchScore={snapshot.matchScore}
+        profile={snapshot.profile}
+        sourceLabel={snapshot.sourceLabel}
+        targetCompany={snapshot.targetCompany}
+        targetRole={snapshot.targetRole}
+      />
     </main>
   );
 }

@@ -34,7 +34,19 @@ function InlineList({ items }: { items: string[] }) {
   return <p className="text-[11px] leading-[1.65] text-ink">{items.join(" · ")}</p>;
 }
 
-export function ResumePrintView({ profile }: { profile: UserProfile }) {
+export function ResumePrintView({
+  profile,
+  sourceLabel,
+  targetCompany,
+  targetRole,
+  matchScore,
+}: {
+  profile: UserProfile;
+  sourceLabel?: string;
+  targetCompany?: string;
+  targetRole?: string;
+  matchScore?: number;
+}) {
   const primaryProjects = profile.projects.slice(0, 4);
 
   return (
@@ -46,6 +58,14 @@ export function ResumePrintView({ profile }: { profile: UserProfile }) {
             <p className="mt-1 text-sm font-semibold text-ink">{profile.targetRole}</p>
           </div>
           <div className="space-y-1 text-right text-[11px] leading-5 text-muted">
+            {sourceLabel ? <p className="font-semibold text-ink">{sourceLabel}</p> : null}
+            {targetCompany ? (
+              <p>
+                {targetCompany}
+                {targetRole ? ` · ${targetRole}` : ""}
+              </p>
+            ) : null}
+            {typeof matchScore === "number" ? <p>Match Score: {matchScore}</p> : null}
             {[profile.email, profile.phone, profile.location].filter(Boolean).map((item) => (
               <p key={item}>{item}</p>
             ))}

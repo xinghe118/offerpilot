@@ -306,7 +306,26 @@ export function OfferPilotWorkspace() {
   }
 
   function preparePrintProfile() {
-    window.localStorage.setItem("offerpilot.printProfile", JSON.stringify(profile));
+    window.localStorage.setItem(
+      "offerpilot.printProfile",
+      JSON.stringify({
+        profile,
+        sourceLabel: "基础经历库",
+      }),
+    );
+  }
+
+  function prepareVersionPrint(version: ResumeVersion) {
+    window.localStorage.setItem(
+      "offerpilot.printProfile",
+      JSON.stringify({
+        profile: version.content,
+        sourceLabel: version.name,
+        targetCompany: version.targetCompany,
+        targetRole: version.targetRole,
+        matchScore: version.matchScore.total,
+      }),
+    );
   }
 
   async function testAiConnection() {
@@ -905,6 +924,16 @@ export function OfferPilotWorkspace() {
                             </Pill>
                           </div>
                           <p className="mt-3 text-sm leading-6 text-muted">{version.content.summary}</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <a
+                              className="inline-flex h-9 items-center rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink transition hover:border-accent"
+                              href="/resume/print"
+                              onClick={() => prepareVersionPrint(version)}
+                              target="_blank"
+                            >
+                              预览打印
+                            </a>
+                          </div>
                         </div>
                       ))
                     ) : (

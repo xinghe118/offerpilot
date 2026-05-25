@@ -33,10 +33,11 @@ Completed:
 - Local email login path for testing multi-user saved data without OAuth setup.
 - Editable profile library for contact info, skills, education, work experience, and projects.
 - Print-ready resume template that uses the current profile snapshot from the workspace.
+- JD-tailored resume versions can be previewed and printed independently.
 
 Next planned stage:
 
-- Add version-specific resume preview so tailored JD versions can be reviewed before printing.
+- Add richer template controls such as compact mode, section visibility, and language labels.
 
 ## Local Development
 
