@@ -133,16 +133,19 @@ function Input({
   label,
   value,
   onChange,
+  type = "text",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  type?: string;
 }) {
   return (
     <label className="grid gap-2">
       <span className="text-xs font-semibold text-muted">{label}</span>
       <input
         className="h-10 rounded-md border border-line bg-white px-3 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+        type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
@@ -157,6 +160,9 @@ export function OfferPilotWorkspace() {
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [aiTestResult, setAiTestResult] = useState("");
   const [isTestingAi, setIsTestingAi] = useState(false);
+  const [isAnalyzingJd, setIsAnalyzingJd] = useState(false);
+  const [jdAnalysisError, setJdAnalysisError] = useState("");
+  const [versionNotice, setVersionNotice] = useState("");
   const [jobs, setJobs] = useState<JobDescription[]>(seedJobDescriptions);
   const [versions, setVersions] = useState<ResumeVersion[]>([]);
   const [prepDrafts, setPrepDrafts] = useState<Record<string, InterviewPrep>>({});
@@ -219,24 +225,32 @@ export function OfferPilotWorkspace() {
   }
 
   async function analyzeDraftJob() {
-    const response = await fetch("/api/ai/analyze-jd", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        ...draftJob,
-        aiConfig,
-      }),
-    });
-    const analyzed = (await response.json()) as JobDescription | { error?: string };
-    if (!response.ok || !isJobDescription(analyzed)) {
-      return;
-    }
+    setIsAnalyzingJd(true);
+    setJdAnalysisError("");
+    try {
+      const response = await fetch("/api/ai/analyze-jd", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...draftJob,
+          aiConfig,
+        }),
+      });
+      const analyzed = (await response.json()) as JobDescription | { error?: string };
+      if (!response.ok || !isJobDescription(analyzed)) {
+        throw new Error("error" in analyzed ? analyzed.error : "JD 分析失败。");
+      }
 
-    setJobs((current) => [analyzed, ...current]);
-    setActiveJobId(analyzed.id);
-    setActiveTab("jd");
+      setJobs((current) => [analyzed, ...current]);
+      setActiveJobId(analyzed.id);
+      setActiveTab("jd");
+    } catch (error) {
+      setJdAnalysisError(error instanceof Error ? error.message : "JD 分析失败。");
+    } finally {
+      setIsAnalyzingJd(false);
+    }
   }
 
   function applyRewrite() {
@@ -262,6 +276,8 @@ export function OfferPilotWorkspace() {
       bullets: rewrite.bullets,
     });
     setVersions((current) => [version, ...current]);
+    setVersionNotice(`已生成：${version.name}`);
+    window.setTimeout(() => setVersionNotice(""), 2200);
   }
 
   function ensurePrepDraft() {
@@ -472,12 +488,18 @@ export function OfferPilotWorkspace() {
                   />
                 </div>
                 <button
-                  className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                  className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
                   onClick={analyzeDraftJob}
+                  disabled={isAnalyzingJd}
                 >
                   <Sparkles size={16} />
-                  分析 JD
+                  {isAnalyzingJd ? "分析中" : "分析 JD"}
                 </button>
+                {jdAnalysisError ? (
+                  <div className="mt-4 rounded-md border border-danger/20 bg-danger/5 p-3 text-sm leading-6 text-danger">
+                    {jdAnalysisError}
+                  </div>
+                ) : null}
               </Panel>
 
               <Panel>
@@ -574,6 +596,11 @@ export function OfferPilotWorkspace() {
                     生成定制版
                   </button>
                 </div>
+                {versionNotice ? (
+                  <div className="mt-4 rounded-md border border-accent/20 bg-accent/5 p-3 text-sm font-semibold text-accent">
+                    {versionNotice}
+                  </div>
+                ) : null}
                 <div className="mt-5 grid gap-4 lg:grid-cols-2">
                   <div className="rounded-lg border border-line p-4">
                     <p className="text-xs font-semibold text-muted">原始描述</p>
@@ -894,6 +921,7 @@ export function OfferPilotWorkspace() {
                   <Input
                     label="API Key"
                     value={aiConfig.apiKey}
+                    type="password"
                     onChange={(value) => setAiConfig((current) => ({ ...current, apiKey: value }))}
                   />
                 </div>

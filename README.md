@@ -15,6 +15,24 @@ The first local MVP focuses on:
 - Resume/profile match scoring.
 - AI-style project bullet rewriting.
 - Interview preparation question generation.
+- Web AI settings with a connection test button.
+- Print-ready resume export.
+- GitHub repository analysis for resume bullets and interview prep.
+
+## Current Progress
+
+Completed:
+
+- Local OfferPilot workspace with dashboard, JD analysis, resume optimization, interview prep, GitHub analysis, profile, and settings pages.
+- Optional database/auth foundation with Prisma and Auth.js boundaries.
+- OpenAI-compatible AI route layer with local fallback.
+- Browser-based AI provider configuration and connection testing.
+- Print-ready resume page and export API foundation.
+- First production polish pass for loading, error, and success feedback in key flows.
+
+Next planned stage:
+
+- Persist the profile, analyzed JDs, resume versions, and interview prep drafts through the database service layer.
 
 ## Local Development
 
@@ -35,9 +53,9 @@ GitHub repository analysis is available through the workspace and `POST /api/git
 
 Later productization stages include:
 
-- Database login and multi-user saved data.
-- Real AI API integration.
-- PDF resume export.
-- GitHub project analyzer.
+- Multi-user saved data wired into the current UI.
+- Server-side encrypted AI provider settings.
+- Playwright/Puppeteer PDF rendering for production-grade exports.
+- Deeper GitHub project analysis with repository file inspection.
 
 See `DEVELOPMENT.md` for the full product plan and implementation roadmap.

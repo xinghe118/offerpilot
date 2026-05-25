@@ -38,6 +38,7 @@ The local MVP also includes a Settings tab in the web UI. It can configure:
 - OpenAI-compatible base URL.
 - API key.
 - Model.
+- Connection testing through `POST /api/ai/test-connection`.
 
 This browser-based configuration is stored in `localStorage` and sent to OfferPilot API routes with each request. It is useful for local testing, but it is not the final multi-user storage model.
 
@@ -55,6 +56,7 @@ POST /api/ai/analyze-jd
 POST /api/ai/match-resume
 POST /api/ai/rewrite-project
 POST /api/ai/interview-prep
+POST /api/ai/test-connection
 ```
 
 These routes currently use the local provider unless `AI_PROVIDER` is changed. Remote provider support must preserve the same output shapes and must not fabricate user experience, dates, companies, degrees, or metrics.
