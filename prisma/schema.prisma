@@ -62,6 +62,10 @@ model VerificationToken {
 model Profile {
   id          String   @id @default(cuid())
   userId      String   @unique
+  name        String
+  email       String
+  phone       String
+  location    String
   targetRole  String
   summary     String   @db.Text
   skillsJson  Json
@@ -89,7 +93,7 @@ model Resume {
 }
 
 model ResumeVersion {
-  id            String   @id @default(cuid())
+  id            String   @id
   resumeId      String
   userId        String
   name          String
@@ -105,7 +109,7 @@ model ResumeVersion {
 }
 
 model JobDescription {
-  id             String   @id @default(cuid())
+  id             String   @id
   userId         String
   company        String
   role           String
@@ -114,6 +118,7 @@ model JobDescription {
   extractedKeywordsJson Json
   requiredSkillsJson    Json
   niceToHaveJson        Json
+  softSkillsJson        Json
   responsibilitiesJson  Json
   emphasisJson          Json
   createdAt      DateTime @default(now())

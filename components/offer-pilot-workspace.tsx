@@ -43,6 +43,13 @@ type WebAiConfig = {
   model: string;
 };
 
+type WorkspaceSnapshot = {
+  profile: UserProfile | null;
+  jobs: JobDescription[];
+  versions: ResumeVersion[];
+  prepDrafts: Record<string, InterviewPrep>;
+};
+
 const defaultWebAiConfig: WebAiConfig = {
   provider: "local",
   baseUrl: "https://api.openai.com/v1",
@@ -163,6 +170,10 @@ export function OfferPilotWorkspace() {
   const [isAnalyzingJd, setIsAnalyzingJd] = useState(false);
   const [jdAnalysisError, setJdAnalysisError] = useState("");
   const [versionNotice, setVersionNotice] = useState("");
+  const [workspaceStatus, setWorkspaceStatus] = useState("本地状态");
+  const [workspaceError, setWorkspaceError] = useState("");
+  const [isLoadingWorkspace, setIsLoadingWorkspace] = useState(false);
+  const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
   const [jobs, setJobs] = useState<JobDescription[]>(seedJobDescriptions);
   const [versions, setVersions] = useState<ResumeVersion[]>([]);
   const [prepDrafts, setPrepDrafts] = useState<Record<string, InterviewPrep>>({});
@@ -195,10 +206,88 @@ export function OfferPilotWorkspace() {
     setAiConfig(loadWebAiConfig());
   }, []);
 
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadWorkspace() {
+      setIsLoadingWorkspace(true);
+      setWorkspaceError("");
+      try {
+        const response = await fetch("/api/workspace", {
+          cache: "no-store",
+        });
+        const data = (await response.json()) as WorkspaceSnapshot | { error?: string };
+        if (!response.ok) {
+          throw new Error("error" in data ? data.error : "未登录或数据库未配置，继续使用本地状态。");
+        }
+        if (ignore) {
+          return;
+        }
+        if ("profile" in data) {
+          if (data.profile) {
+            setProfile(data.profile);
+            setActiveProjectId(data.profile.projects[0]?.id ?? "");
+          }
+          if (data.jobs.length) {
+            setJobs(data.jobs);
+            setActiveJobId(data.jobs[0].id);
+          }
+          setVersions(data.versions);
+          setPrepDrafts(data.prepDrafts);
+          setWorkspaceStatus(data.profile || data.jobs.length ? "已加载云端工作区" : "云端工作区为空");
+        }
+      } catch (error) {
+        if (!ignore) {
+          setWorkspaceStatus("本地状态");
+          setWorkspaceError(error instanceof Error ? error.message : "未登录或数据库未配置，继续使用本地状态。");
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingWorkspace(false);
+        }
+      }
+    }
+
+    loadWorkspace();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
   function saveAiConfig(nextConfig = aiConfig) {
     window.localStorage.setItem("offerpilot.aiConfig", JSON.stringify(nextConfig));
     setSettingsSaved(true);
     window.setTimeout(() => setSettingsSaved(false), 1800);
+  }
+
+  async function saveWorkspace() {
+    setIsSavingWorkspace(true);
+    setWorkspaceError("");
+    try {
+      const response = await fetch("/api/workspace", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          profile,
+          jobs,
+          versions,
+          prepDrafts,
+        }),
+      });
+      const result = (await response.json()) as { ok?: boolean; savedAt?: string; error?: string };
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error ?? "保存失败。");
+      }
+      setWorkspaceStatus(`已保存 ${new Date(result.savedAt ?? Date.now()).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`);
+    } catch (error) {
+      setWorkspaceStatus("本地状态");
+      setWorkspaceError(error instanceof Error ? error.message : "保存失败。");
+    } finally {
+      setIsSavingWorkspace(false);
+    }
   }
 
   async function testAiConnection() {
@@ -363,8 +452,17 @@ export function OfferPilotWorkspace() {
             <h1 className="text-xl font-bold text-ink">AI 求职工作台</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Pill tone="green">本地 MVP</Pill>
-            <Pill>真实 AI / 数据库在后续阶段接入</Pill>
+            <Pill tone={workspaceStatus.includes("保存") || workspaceStatus.includes("加载") ? "green" : "neutral"}>
+              {isLoadingWorkspace ? "加载中" : workspaceStatus}
+            </Pill>
+            <button
+              className="inline-flex h-9 items-center gap-2 rounded-md bg-accent px-3 text-xs font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
+              onClick={saveWorkspace}
+              disabled={isSavingWorkspace}
+            >
+              <CheckCircle2 size={14} />
+              {isSavingWorkspace ? "保存中" : "保存工作区"}
+            </button>
             <a
               className="inline-flex h-9 items-center rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink transition hover:border-accent"
               href="/resume/print"
@@ -375,6 +473,11 @@ export function OfferPilotWorkspace() {
           </div>
         </div>
       </header>
+      {workspaceError ? (
+        <div className="border-b border-line bg-amber/10">
+          <div className="mx-auto max-w-[1440px] px-5 py-2 text-sm leading-6 text-amber">{workspaceError}</div>
+        </div>
+      ) : null}
 
       <nav className="border-b border-line bg-white/80">
         <div className="mx-auto flex max-w-[1440px] gap-1 overflow-x-auto px-5 py-2">

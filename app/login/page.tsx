@@ -1,5 +1,6 @@
 import { Github, KeyRound } from "lucide-react";
 import { hasOAuthProviderConfig, isAuthRequired } from "@/lib/auth/guards";
+import { EmailLoginForm } from "@/components/email-login-form";
 
 export default function LoginPage() {
   const authRequired = isAuthRequired();
@@ -13,6 +14,8 @@ export default function LoginPage() {
         <p className="mt-3 text-sm leading-6 text-muted">
           登录会在后续阶段用于保存个人经历库、JD、简历版本和面试准备记录。当前本地 MVP 默认可免登录访问。
         </p>
+
+        <EmailLoginForm />
 
         <div className="mt-6 space-y-3">
           <a

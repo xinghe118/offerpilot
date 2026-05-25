@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { asJson } from "@/lib/db/json";
-import { requireUserId } from "@/lib/db/ownership";
+import { assertUserScopedRecord, requireUserId } from "@/lib/db/ownership";
 import type { InterviewPrep } from "@/lib/domain/types";
 
 export async function listInterviewPrepsForUser(userId: string) {
@@ -17,6 +17,16 @@ export async function listInterviewPrepsForUser(userId: string) {
 
 export async function upsertInterviewPrepForUser(userId: string, prep: InterviewPrep) {
   const scopedUserId = requireUserId(userId);
+  const existing = await prisma.interviewPrep.findUnique({
+    where: {
+      id: prep.id,
+    },
+  });
+
+  if (existing) {
+    assertUserScopedRecord(existing.userId, scopedUserId);
+  }
+
   return prisma.interviewPrep.upsert({
     where: {
       id: prep.id,

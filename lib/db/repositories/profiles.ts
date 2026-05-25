@@ -20,6 +20,10 @@ export async function upsertProfileForUser(userId: string, profile: UserProfile)
     },
     create: {
       userId: scopedUserId,
+      name: profile.name,
+      email: profile.email,
+      phone: profile.phone,
+      location: profile.location,
       targetRole: profile.targetRole,
       summary: profile.summary,
       skillsJson: asJson(profile.skills),
@@ -29,6 +33,10 @@ export async function upsertProfileForUser(userId: string, profile: UserProfile)
       linksJson: asJson(profile.links),
     },
     update: {
+      name: profile.name,
+      email: profile.email,
+      phone: profile.phone,
+      location: profile.location,
       targetRole: profile.targetRole,
       summary: profile.summary,
       skillsJson: asJson(profile.skills),
