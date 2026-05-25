@@ -305,6 +305,10 @@ export function OfferPilotWorkspace() {
     }
   }
 
+  function preparePrintProfile() {
+    window.localStorage.setItem("offerpilot.printProfile", JSON.stringify(profile));
+  }
+
   async function testAiConnection() {
     setIsTestingAi(true);
     setAiTestResult("");
@@ -606,6 +610,7 @@ export function OfferPilotWorkspace() {
             <a
               className="inline-flex h-9 items-center rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink transition hover:border-accent"
               href="/resume/print"
+              onClick={preparePrintProfile}
               target="_blank"
             >
               打印简历

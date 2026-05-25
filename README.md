@@ -32,10 +32,11 @@ Completed:
 - Workspace persistence API for loading and saving profile, analyzed JDs, tailored resume versions, and interview prep drafts.
 - Local email login path for testing multi-user saved data without OAuth setup.
 - Editable profile library for contact info, skills, education, work experience, and projects.
+- Print-ready resume template that uses the current profile snapshot from the workspace.
 
 Next planned stage:
 
-- Improve resume preview/export templates so edited profile data has a stronger printable presentation.
+- Add version-specific resume preview so tailored JD versions can be reviewed before printing.
 
 ## Local Development
 

@@ -10,13 +10,14 @@ The page is designed for browser print or "Save as PDF" and uses normal selectab
 
 ## Current Behavior
 
-- The local MVP renders a sample resume from seed data.
-- The app header links to the print preview.
+- The print page renders the current workspace profile snapshot from browser storage and falls back to seed data if no snapshot exists.
+- The app header stores the current profile before opening the print preview.
+- The template is a single-column ATS-friendly layout with selectable text for summary, skills, experience, projects, education, and interview talking points.
 - `POST /api/resume-versions/export-pdf` returns the print URL and marks the export as `print-ready`.
 
 ## Production Export Plan
 
-After resume versions are persisted:
+After resume versions are persisted and selectable in the UI:
 
 1. Render a version-specific route such as `/resume/:versionId/print`.
 2. Use Playwright or Puppeteer server-side to open that route.
