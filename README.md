@@ -34,10 +34,11 @@ Completed:
 - Editable profile library for contact info, skills, education, work experience, and projects.
 - Print-ready resume template that uses the current profile snapshot from the workspace.
 - JD-tailored resume versions can be previewed and printed independently.
+- Resume print controls for compact mode, interview notes visibility, and English/Chinese section labels.
 
 Next planned stage:
 
-- Add richer template controls such as compact mode, section visibility, and language labels.
+- Improve AI rewrite flow so users can request alternate tones and regenerate suggestions.
 
 ## Local Development
 

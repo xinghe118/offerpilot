@@ -1,4 +1,5 @@
 import type { UserProfile } from "@/lib/domain/types";
+import { defaultResumePrintOptions, resumeSectionLabels, type ResumePrintOptions } from "@/lib/resume/print-options";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -40,18 +41,24 @@ export function ResumePrintView({
   targetCompany,
   targetRole,
   matchScore,
+  options = defaultResumePrintOptions,
 }: {
   profile: UserProfile;
   sourceLabel?: string;
   targetCompany?: string;
   targetRole?: string;
   matchScore?: number;
+  options?: ResumePrintOptions;
 }) {
   const primaryProjects = profile.projects.slice(0, 4);
+  const labels = resumeSectionLabels[options.language];
+  const articlePadding = options.compact ? "px-10 py-8 print:p-8" : "px-12 py-10 print:p-10";
+  const mainSpacing = options.compact ? "mt-4 space-y-4" : "mt-5 space-y-5";
+  const itemSpacing = options.compact ? "space-y-3" : "space-y-4";
 
   return (
-    <article className="print-area mx-auto min-h-[297mm] w-[210mm] bg-white px-12 py-10 text-ink shadow-panel print:mx-0 print:min-h-[297mm] print:w-[210mm] print:p-10 print:shadow-none">
-      <header className="border-b-2 border-ink pb-4">
+    <article className={`print-area mx-auto min-h-[297mm] w-[210mm] bg-white ${articlePadding} text-ink shadow-panel print:mx-0 print:min-h-[297mm] print:w-[210mm] print:shadow-none`}>
+      <header className={`border-b-2 border-ink ${options.compact ? "pb-3" : "pb-4"}`}>
         <div className="flex items-start justify-between gap-8">
           <div>
             <h1 className="text-3xl font-bold leading-tight">{profile.name}</h1>
@@ -65,7 +72,7 @@ export function ResumePrintView({
                 {targetRole ? ` · ${targetRole}` : ""}
               </p>
             ) : null}
-            {typeof matchScore === "number" ? <p>Match Score: {matchScore}</p> : null}
+            {typeof matchScore === "number" ? <p>{labels.matchScore}: {matchScore}</p> : null}
             {[profile.email, profile.phone, profile.location].filter(Boolean).map((item) => (
               <p key={item}>{item}</p>
             ))}
@@ -78,18 +85,18 @@ export function ResumePrintView({
         </div>
       </header>
 
-      <main className="mt-5 space-y-5">
-        <Section title="Summary">
+      <main className={mainSpacing}>
+        <Section title={labels.summary}>
           <p className="text-[11px] leading-[1.65] text-ink">{profile.summary}</p>
         </Section>
 
-        <Section title="Skills">
+        <Section title={labels.skills}>
           <InlineList items={profile.skills} />
         </Section>
 
         {profile.experience.length ? (
-          <Section title="Experience">
-            <div className="space-y-4">
+          <Section title={labels.experience}>
+            <div className={itemSpacing}>
               {profile.experience.map((experience) => (
                 <div key={experience.id}>
                   <div className="flex items-baseline justify-between gap-4">
@@ -109,8 +116,8 @@ export function ResumePrintView({
           </Section>
         ) : null}
 
-        <Section title="Projects">
-          <div className="space-y-4">
+        <Section title={labels.projects}>
+          <div className={itemSpacing}>
             {primaryProjects.map((project) => (
               <div key={project.id}>
                 <div className="flex items-baseline justify-between gap-4">
@@ -119,7 +126,7 @@ export function ResumePrintView({
                 </div>
                 <p className="mt-0.5 text-[10px] font-semibold text-muted">{project.techStack.join(" / ")}</p>
                 {project.features.length ? (
-                  <p className="mt-1 text-[10px] leading-[1.55] text-muted">Features: {project.features.join(" · ")}</p>
+                  <p className="mt-1 text-[10px] leading-[1.55] text-muted">{labels.features}: {project.features.join(" · ")}</p>
                 ) : null}
                 <p className="mt-1 text-[11px] leading-[1.55] text-ink">{project.rawDescription}</p>
                 <div className="mt-1.5">
@@ -131,8 +138,8 @@ export function ResumePrintView({
         </Section>
 
         {profile.education.length ? (
-          <Section title="Education">
-            <div className="space-y-3">
+          <Section title={labels.education}>
+            <div className={options.compact ? "space-y-2" : "space-y-3"}>
               {profile.education.map((education) => (
                 <div key={education.id}>
                   <div className="flex items-baseline justify-between gap-4">
@@ -153,9 +160,9 @@ export function ResumePrintView({
           </Section>
         ) : null}
 
-        {profile.projects.some((project) => project.interviewTalkingPoints.length) ? (
-          <Section title="Interview Talking Points">
-            <div className="space-y-3">
+        {options.showInterviewNotes && profile.projects.some((project) => project.interviewTalkingPoints.length) ? (
+          <Section title={labels.interview}>
+            <div className={options.compact ? "space-y-2" : "space-y-3"}>
               {primaryProjects
                 .filter((project) => project.interviewTalkingPoints.length)
                 .map((project) => (

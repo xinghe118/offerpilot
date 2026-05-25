@@ -14,6 +14,7 @@ The page is designed for browser print or "Save as PDF" and uses normal selectab
 - The app header stores the current profile before opening the print preview.
 - Each JD-tailored resume version has a preview/print action that stores that version snapshot before opening the same print route.
 - The template is a single-column ATS-friendly layout with selectable text for summary, skills, experience, projects, education, and interview talking points.
+- The print toolbar supports compact mode, hiding interview notes, and switching section labels between English and Chinese.
 - `POST /api/resume-versions/export-pdf` returns the print URL and marks the export as `print-ready`.
 
 ## Production Export Plan
