@@ -2,7 +2,7 @@ import { analyzeJobDescription } from "@/lib/ai/analyze-jd";
 import { generateInterviewPrep } from "@/lib/ai/interview-questions";
 import { matchResumeToJd } from "@/lib/ai/match-resume";
 import { createOpenAiCompatibleProvider, type RuntimeAiConfig } from "@/lib/ai/openai-compatible";
-import { rewriteProjectForJd } from "@/lib/ai/rewrite-project";
+import { rewriteProjectForJd, type RewriteProjectOptions } from "@/lib/ai/rewrite-project";
 import type { JobDescription, Project, UserProfile } from "@/lib/domain/types";
 
 export type AnalyzeJdInput = Pick<JobDescription, "company" | "role" | "rawText">;
@@ -15,6 +15,7 @@ export type MatchResumeInput = {
 export type RewriteProjectInput = {
   project: Project;
   jd: JobDescription;
+  options?: RewriteProjectOptions;
 };
 
 export type InterviewPrepInput = {
@@ -36,8 +37,8 @@ const localProvider: AiProvider = {
   async matchResume({ profile, jd }) {
     return matchResumeToJd(profile, jd);
   },
-  async rewriteProject({ project, jd }) {
-    return rewriteProjectForJd(project, jd);
+  async rewriteProject({ project, jd, options }) {
+    return rewriteProjectForJd(project, jd, options);
   },
   async generateInterviewPrep({ profile, jd }) {
     return generateInterviewPrep(profile, jd);

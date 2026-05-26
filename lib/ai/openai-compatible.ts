@@ -164,7 +164,7 @@ export function createOpenAiCompatibleProvider(localProvider: AiProvider, runtim
       const fallback = await localProvider.rewriteProject(input);
       try {
         const result = await callOpenAiJson<JsonObject>(
-          "Rewrite project resume bullets for the target JD. Return strict JSON with bullets and reasoning. Preserve facts and never invent metrics, dates, companies, or experience.",
+          "Rewrite project resume bullets for the target JD. Return strict JSON with bullets and reasoning. Preserve facts and never invent metrics, dates, companies, or experience. Respect the requested tone, focus, and variant.",
           input,
           runtimeConfig,
         );

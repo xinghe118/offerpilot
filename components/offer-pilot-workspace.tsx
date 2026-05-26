@@ -19,7 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 import { generateInterviewPrep } from "@/lib/ai/interview-questions";
 import { matchResumeToJd } from "@/lib/ai/match-resume";
 import { createTailoredResumeVersion } from "@/lib/ai/resume-version";
-import { rewriteProjectForJd } from "@/lib/ai/rewrite-project";
+import { rewriteProjectForJd, type RewriteFocus, type RewriteProjectOptions, type RewriteTone } from "@/lib/ai/rewrite-project";
 import { seedJobDescriptions, seedProfile } from "@/lib/domain/seed-data";
 import type { GitHubRepoAnalysis, InterviewPrep, JobDescription, Project, ResumeVersion, UserProfile } from "@/lib/domain/types";
 import { ScoreCard } from "./ui/score-card";
@@ -49,6 +49,8 @@ type WorkspaceSnapshot = {
   versions: ResumeVersion[];
   prepDrafts: Record<string, InterviewPrep>;
 };
+
+type RewriteDraft = ReturnType<typeof rewriteProjectForJd>;
 
 const defaultWebAiConfig: WebAiConfig = {
   provider: "local",
@@ -184,6 +186,14 @@ export function OfferPilotWorkspace() {
   const [isTestingAi, setIsTestingAi] = useState(false);
   const [isAnalyzingJd, setIsAnalyzingJd] = useState(false);
   const [jdAnalysisError, setJdAnalysisError] = useState("");
+  const [rewriteOptions, setRewriteOptions] = useState<Required<RewriteProjectOptions>>({
+    tone: "professional",
+    focus: "ats",
+    variant: 0,
+  });
+  const [rewriteDraft, setRewriteDraft] = useState<RewriteDraft | null>(null);
+  const [isRegeneratingRewrite, setIsRegeneratingRewrite] = useState(false);
+  const [rewriteError, setRewriteError] = useState("");
   const [versionNotice, setVersionNotice] = useState("");
   const [workspaceStatus, setWorkspaceStatus] = useState("本地状态");
   const [workspaceError, setWorkspaceError] = useState("");
@@ -207,7 +217,8 @@ export function OfferPilotWorkspace() {
   const activeJob = jobs.find((job) => job.id === activeJobId) ?? jobs[0];
   const activeProject = profile.projects.find((project) => project.id === activeProjectId) ?? profile.projects[0];
   const match = useMemo(() => matchResumeToJd(profile, activeJob), [profile, activeJob]);
-  const rewrite = useMemo(() => rewriteProjectForJd(activeProject, activeJob), [activeProject, activeJob]);
+  const fallbackRewrite = useMemo(() => rewriteProjectForJd(activeProject, activeJob, rewriteOptions), [activeProject, activeJob, rewriteOptions]);
+  const rewrite = rewriteDraft ?? fallbackRewrite;
   const generatedPrep = useMemo(() => generateInterviewPrep(profile, activeJob), [profile, activeJob]);
   const prep = prepDrafts[activeJob.id] ?? generatedPrep;
 
@@ -220,6 +231,11 @@ export function OfferPilotWorkspace() {
   useEffect(() => {
     setAiConfig(loadWebAiConfig());
   }, []);
+
+  useEffect(() => {
+    setRewriteDraft(null);
+    setRewriteError("");
+  }, [activeProject.id, activeJob.id, rewriteOptions]);
 
   useEffect(() => {
     let ignore = false;
@@ -377,6 +393,38 @@ export function OfferPilotWorkspace() {
       setJdAnalysisError(error instanceof Error ? error.message : "JD 分析失败。");
     } finally {
       setIsAnalyzingJd(false);
+    }
+  }
+
+  async function regenerateRewrite() {
+    setIsRegeneratingRewrite(true);
+    setRewriteError("");
+    try {
+      const response = await fetch("/api/ai/rewrite-project", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          project: activeProject,
+          jd: activeJob,
+          options: {
+            ...rewriteOptions,
+            variant: rewriteOptions.variant + 1,
+          },
+          aiConfig,
+        }),
+      });
+      const result = (await response.json()) as RewriteDraft | { error?: string };
+      if (!response.ok || !("bullets" in result)) {
+        throw new Error("error" in result ? result.error : "重新生成失败。");
+      }
+
+      setRewriteDraft(result);
+    } catch (error) {
+      setRewriteError(error instanceof Error ? error.message : "重新生成失败。");
+    } finally {
+      setIsRegeneratingRewrite(false);
     }
   }
 
@@ -849,6 +897,14 @@ export function OfferPilotWorkspace() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <SectionHeader title="AI 项目描述改写" detail={`${activeProject.name} -> ${activeJob.company} ${activeJob.role}`} />
                   <button
+                    className="inline-flex h-10 items-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-semibold text-ink transition hover:border-accent disabled:opacity-60"
+                    onClick={regenerateRewrite}
+                    disabled={isRegeneratingRewrite}
+                  >
+                    <Sparkles size={16} />
+                    {isRegeneratingRewrite ? "生成中" : "重新生成"}
+                  </button>
+                  <button
                     className="inline-flex h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white transition hover:bg-accent/90"
                     onClick={applyRewrite}
                   >
@@ -863,9 +919,45 @@ export function OfferPilotWorkspace() {
                     生成定制版
                   </button>
                 </div>
+                <div className="mt-4 grid gap-3 rounded-lg border border-line bg-canvas p-4 md:grid-cols-2">
+                  <label className="grid gap-2">
+                    <span className="text-xs font-semibold text-muted">表达语气</span>
+                    <select
+                      className="h-10 rounded-md border border-line bg-white px-3 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+                      value={rewriteOptions.tone}
+                      onChange={(event) =>
+                        setRewriteOptions((current) => ({ ...current, tone: event.target.value as RewriteTone }))
+                      }
+                    >
+                      <option value="professional">专业稳健</option>
+                      <option value="impact">成果冲击</option>
+                      <option value="concise">简洁扫读</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-2">
+                    <span className="text-xs font-semibold text-muted">优化方向</span>
+                    <select
+                      className="h-10 rounded-md border border-line bg-white px-3 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+                      value={rewriteOptions.focus}
+                      onChange={(event) =>
+                        setRewriteOptions((current) => ({ ...current, focus: event.target.value as RewriteFocus }))
+                      }
+                    >
+                      <option value="ats">JD 关键词 / ATS</option>
+                      <option value="frontend">前端岗位</option>
+                      <option value="fullstack">全栈岗位</option>
+                      <option value="ai">AI 应用岗位</option>
+                    </select>
+                  </label>
+                </div>
                 {versionNotice ? (
                   <div className="mt-4 rounded-md border border-accent/20 bg-accent/5 p-3 text-sm font-semibold text-accent">
                     {versionNotice}
+                  </div>
+                ) : null}
+                {rewriteError ? (
+                  <div className="mt-4 rounded-md border border-danger/20 bg-danger/5 p-3 text-sm leading-6 text-danger">
+                    {rewriteError}
                   </div>
                 ) : null}
                 <div className="mt-5 grid gap-4 lg:grid-cols-2">

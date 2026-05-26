@@ -35,10 +35,11 @@ Completed:
 - Print-ready resume template that uses the current profile snapshot from the workspace.
 - JD-tailored resume versions can be previewed and printed independently.
 - Resume print controls for compact mode, interview notes visibility, and English/Chinese section labels.
+- AI project rewrite controls for tone, role focus, and regenerating alternate bullet suggestions.
 
 Next planned stage:
 
-- Improve AI rewrite flow so users can request alternate tones and regenerate suggestions.
+- Add side-by-side comparison for multiple rewrite candidates before applying one.
 
 ## Local Development
 

@@ -17,6 +17,12 @@ The local provider calls deterministic rule-based functions:
 - Project rewrite suggestions
 - Interview prep generation
 
+Project rewrite suggestions accept options for:
+
+- Tone: professional, impact, or concise.
+- Focus: ATS keywords, frontend, full-stack, or AI application.
+- Variant: alternate wording without changing the underlying facts.
+
 Future remote providers will be added behind the same `AiProvider` interface in `lib/ai/provider.ts`.
 
 OpenAI-compatible mode:
@@ -59,7 +65,7 @@ POST /api/ai/interview-prep
 POST /api/ai/test-connection
 ```
 
-These routes currently use the local provider unless `AI_PROVIDER` is changed. Remote provider support must preserve the same output shapes and must not fabricate user experience, dates, companies, degrees, or metrics.
+These routes currently use the local provider unless `AI_PROVIDER` is changed. Remote provider support must preserve the same output shapes, respect rewrite options, and must not fabricate user experience, dates, companies, degrees, or metrics.
 
 ## Remote Provider Safety Rules
 
