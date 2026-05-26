@@ -37,10 +37,11 @@ Completed:
 - Resume print controls for compact mode, interview notes visibility, and English/Chinese section labels.
 - AI project rewrite controls for tone, role focus, and regenerating alternate bullet suggestions.
 - Side-by-side rewrite candidate comparison with per-candidate apply and version generation actions.
+- Tailored resume version management with rename, delete, detail view, and print actions.
 
 Next planned stage:
 
-- Add version management controls for renaming, deleting, and saving tailored resume versions.
+- Add JD detail/history management so analyzed job descriptions can be renamed, removed, and revisited more cleanly.
 
 ## Local Development
 

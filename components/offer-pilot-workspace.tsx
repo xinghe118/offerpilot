@@ -207,6 +207,7 @@ export function OfferPilotWorkspace() {
   const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
   const [jobs, setJobs] = useState<JobDescription[]>(seedJobDescriptions);
   const [versions, setVersions] = useState<ResumeVersion[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState("");
   const [prepDrafts, setPrepDrafts] = useState<Record<string, InterviewPrep>>({});
   const [repoUrl, setRepoUrl] = useState("https://github.com/xinghe118/offerpilot");
   const [repoAnalysis, setRepoAnalysis] = useState<GitHubRepoAnalysis | null>(null);
@@ -243,6 +244,7 @@ export function OfferPilotWorkspace() {
   const averageMatch = Math.round(jobs.reduce((sum, job) => sum + matchResumeToJd(profile, job).total, 0) / jobs.length);
   const missingCount = match.missingKeywords.length;
   const relatedVersions = versions.filter((version) => version.jdId === activeJob.id);
+  const selectedVersion = relatedVersions.find((version) => version.id === selectedVersionId) ?? relatedVersions[0];
   const prepCount =
     prep.technicalQuestions.length + prep.projectQuestions.length + prep.behaviorQuestions.length + prep.englishQuestions.length;
 
@@ -283,6 +285,7 @@ export function OfferPilotWorkspace() {
             setActiveJobId(data.jobs[0].id);
           }
           setVersions(data.versions);
+          setSelectedVersionId(data.versions[0]?.id ?? "");
           setPrepDrafts(data.prepDrafts);
           setWorkspaceStatus(data.profile || data.jobs.length ? "已加载云端工作区" : "云端工作区为空");
         }
@@ -476,8 +479,33 @@ export function OfferPilotWorkspace() {
       bullets: candidate.bullets,
     });
     setVersions((current) => [version, ...current]);
+    setSelectedVersionId(version.id);
     setVersionNotice(`已生成：${version.name}`);
     window.setTimeout(() => setVersionNotice(""), 2200);
+  }
+
+  function renameVersion(versionId: string, name: string) {
+    setVersions((current) =>
+      current.map((version) =>
+        version.id === versionId
+          ? {
+              ...version,
+              name,
+              updatedAt: new Date().toISOString().slice(0, 10),
+            }
+          : version,
+      ),
+    );
+  }
+
+  function deleteVersion(versionId: string) {
+    setVersions((current) => {
+      const next = current.filter((version) => version.id !== versionId);
+      if (selectedVersionId === versionId) {
+        setSelectedVersionId(next.find((version) => version.jdId === activeJob.id)?.id ?? "");
+      }
+      return next;
+    });
   }
 
   function addSkill() {
@@ -1080,13 +1108,23 @@ export function OfferPilotWorkspace() {
                     </div>
                     <Pill tone={relatedVersions.length ? "green" : "neutral"}>{relatedVersions.length} 个版本</Pill>
                   </div>
-                  <div className="mt-4 grid gap-3">
+                  <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                    <div className="grid gap-3">
                     {relatedVersions.length ? (
                       relatedVersions.map((version) => (
-                        <div className="rounded-md border border-line bg-white p-3" key={version.id}>
+                        <div
+                          className={`rounded-md border bg-white p-3 transition ${
+                            selectedVersion?.id === version.id ? "border-accent" : "border-line"
+                          }`}
+                          key={version.id}
+                        >
                           <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-bold text-ink">{version.name}</p>
+                            <div className="min-w-0 flex-1">
+                              <input
+                                className="h-9 w-full rounded-md border border-line bg-white px-2 text-sm font-bold text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+                                value={version.name}
+                                onChange={(event) => renameVersion(version.id, event.target.value)}
+                              />
                               <p className="mt-1 text-xs text-muted">
                                 {version.targetCompany} · {version.targetRole} · {version.updatedAt}
                               </p>
@@ -1097,6 +1135,12 @@ export function OfferPilotWorkspace() {
                           </div>
                           <p className="mt-3 text-sm leading-6 text-muted">{version.content.summary}</p>
                           <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              className="inline-flex h-9 items-center rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink transition hover:border-accent"
+                              onClick={() => setSelectedVersionId(version.id)}
+                            >
+                              {selectedVersion?.id === version.id ? "已选中" : "查看详情"}
+                            </button>
                             <a
                               className="inline-flex h-9 items-center rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink transition hover:border-accent"
                               href="/resume/print"
@@ -1105,12 +1149,55 @@ export function OfferPilotWorkspace() {
                             >
                               预览打印
                             </a>
+                            <button
+                              className="inline-flex h-9 items-center rounded-md border border-line bg-white px-3 text-xs font-semibold text-muted transition hover:border-danger hover:text-danger"
+                              onClick={() => deleteVersion(version.id)}
+                            >
+                              删除
+                            </button>
                           </div>
                         </div>
                       ))
                     ) : (
                       <p className="text-sm text-muted">还没有为当前 JD 生成定制版本。</p>
                     )}
+                    </div>
+                    {selectedVersion ? (
+                      <div className="rounded-lg border border-line bg-canvas p-4">
+                        <p className="text-xs font-semibold text-muted">版本详情</p>
+                        <h3 className="mt-2 text-sm font-bold text-ink">{selectedVersion.name}</h3>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted">
+                          <div className="rounded-md border border-line bg-white p-2">总分 {selectedVersion.matchScore.total}</div>
+                          <div className="rounded-md border border-line bg-white p-2">技能 {selectedVersion.matchScore.skills}</div>
+                          <div className="rounded-md border border-line bg-white p-2">项目 {selectedVersion.matchScore.projectRelevance}</div>
+                          <div className="rounded-md border border-line bg-white p-2">ATS {selectedVersion.matchScore.atsFriendliness}</div>
+                        </div>
+                        <p className="mt-4 text-xs font-semibold text-muted">已覆盖关键词</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {selectedVersion.matchScore.matchedKeywords.slice(0, 8).map((keyword) => (
+                            <Pill tone="green" key={keyword}>
+                              {keyword}
+                            </Pill>
+                          ))}
+                        </div>
+                        <p className="mt-4 text-xs font-semibold text-muted">待补关键词</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {selectedVersion.matchScore.missingKeywords.slice(0, 8).map((keyword) => (
+                            <Pill tone="amber" key={keyword}>
+                              {keyword}
+                            </Pill>
+                          ))}
+                        </div>
+                        <a
+                          className="mt-4 inline-flex h-9 items-center rounded-md bg-ink px-3 text-xs font-semibold text-white transition hover:bg-ink/90"
+                          href="/resume/print"
+                          onClick={() => prepareVersionPrint(selectedVersion)}
+                          target="_blank"
+                        >
+                          打印此版本
+                        </a>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </Panel>
