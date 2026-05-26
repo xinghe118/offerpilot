@@ -508,6 +508,30 @@ export function OfferPilotWorkspace() {
     });
   }
 
+  function updateJob(jobId: string, patch: Partial<Pick<JobDescription, "company" | "role" | "rawText">>) {
+    setJobs((current) => current.map((job) => (job.id === jobId ? { ...job, ...patch } : job)));
+  }
+
+  function deleteJob(jobId: string) {
+    if (jobs.length <= 1) {
+      setJdAnalysisError("至少保留一个 JD，避免工作台没有当前上下文。");
+      return;
+    }
+
+    const nextJobs = jobs.filter((job) => job.id !== jobId);
+    setJobs(nextJobs);
+    setVersions((current) => current.filter((version) => version.jdId !== jobId));
+    setPrepDrafts((current) => {
+      const next = { ...current };
+      delete next[jobId];
+      return next;
+    });
+    if (activeJobId === jobId) {
+      setActiveJobId(nextJobs[0].id);
+      setSelectedVersionId("");
+    }
+  }
+
   function addSkill() {
     setProfile((current) => ({
       ...current,
@@ -791,20 +815,35 @@ export function OfferPilotWorkspace() {
                   {jobs.map((job) => {
                     const jobMatch = matchResumeToJd(profile, job);
                     return (
-                      <button
+                      <div
                         className={`rounded-lg border p-4 text-left transition ${
                           activeJobId === job.id ? "border-accent bg-accent/5" : "border-line bg-white hover:border-accent"
                         }`}
                         key={job.id}
-                        onClick={() => setActiveJobId(job.id)}
                       >
-                        <h3 className="text-sm font-bold text-ink">{job.company}</h3>
-                        <p className="mt-1 text-sm text-muted">{job.role}</p>
+                        <button className="block w-full text-left" onClick={() => setActiveJobId(job.id)}>
+                          <h3 className="text-sm font-bold text-ink">{job.company}</h3>
+                          <p className="mt-1 text-sm text-muted">{job.role}</p>
+                        </button>
                         <div className="mt-3 flex flex-wrap gap-2">
                           <Pill tone={jobMatch.total >= 75 ? "green" : "amber"}>匹配 {jobMatch.total}</Pill>
                           <Pill>{job.keywords.slice(0, 3).join(" / ")}</Pill>
                         </div>
-                      </button>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            className="h-8 rounded-md border border-line bg-white px-2 text-xs font-semibold text-ink transition hover:border-accent"
+                            onClick={() => setActiveJobId(job.id)}
+                          >
+                            查看
+                          </button>
+                          <button
+                            className="h-8 rounded-md border border-line bg-white px-2 text-xs font-semibold text-muted transition hover:border-danger hover:text-danger"
+                            onClick={() => deleteJob(job.id)}
+                          >
+                            删除
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -871,6 +910,29 @@ export function OfferPilotWorkspace() {
               </Panel>
 
               <Panel>
+                <div className="mb-5 rounded-lg border border-line bg-canvas p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <SectionHeader title="当前 JD 管理" detail="可维护已分析岗位的展示名称和原文。" />
+                    <button
+                      className="inline-flex h-9 items-center rounded-md border border-line bg-white px-3 text-xs font-semibold text-muted transition hover:border-danger hover:text-danger"
+                      onClick={() => deleteJob(activeJob.id)}
+                    >
+                      删除当前 JD
+                    </button>
+                  </div>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <Input label="公司" value={activeJob.company} onChange={(value) => updateJob(activeJob.id, { company: value })} />
+                    <Input label="岗位" value={activeJob.role} onChange={(value) => updateJob(activeJob.id, { role: value })} />
+                  </div>
+                  <div className="mt-4">
+                    <TextArea
+                      label="JD 原文"
+                      rows={5}
+                      value={activeJob.rawText}
+                      onChange={(value) => updateJob(activeJob.id, { rawText: value })}
+                    />
+                  </div>
+                </div>
                 <SectionHeader title="结构化分析结果" detail={`${activeJob.company} · ${activeJob.role} · ${activeJob.seniority ?? "未知等级"}`} />
                 <div className="mt-5 grid gap-4">
                   <div>

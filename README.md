@@ -38,10 +38,11 @@ Completed:
 - AI project rewrite controls for tone, role focus, and regenerating alternate bullet suggestions.
 - Side-by-side rewrite candidate comparison with per-candidate apply and version generation actions.
 - Tailored resume version management with rename, delete, detail view, and print actions.
+- JD management with editable company, role, raw description, and deletion of analyzed jobs.
 
 Next planned stage:
 
-- Add JD detail/history management so analyzed job descriptions can be renamed, removed, and revisited more cleanly.
+- Improve persistence UX with explicit save prompts and clearer logged-in/database status.
 
 ## Local Development
 
