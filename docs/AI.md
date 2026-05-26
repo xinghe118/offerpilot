@@ -23,6 +23,8 @@ Project rewrite suggestions accept options for:
 - Focus: ATS keywords, frontend, full-stack, or AI application.
 - Variant: alternate wording without changing the underlying facts.
 
+The optimizer keeps multiple rewrite candidates in the UI so users can compare alternatives before applying one to the profile or creating a tailored resume version.
+
 Future remote providers will be added behind the same `AiProvider` interface in `lib/ai/provider.ts`.
 
 OpenAI-compatible mode:

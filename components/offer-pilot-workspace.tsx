@@ -52,6 +52,11 @@ type WorkspaceSnapshot = {
 
 type RewriteDraft = ReturnType<typeof rewriteProjectForJd>;
 
+type RewriteCandidate = RewriteDraft & {
+  id: string;
+  label: string;
+};
+
 const defaultWebAiConfig: WebAiConfig = {
   provider: "local",
   baseUrl: "https://api.openai.com/v1",
@@ -191,7 +196,8 @@ export function OfferPilotWorkspace() {
     focus: "ats",
     variant: 0,
   });
-  const [rewriteDraft, setRewriteDraft] = useState<RewriteDraft | null>(null);
+  const [rewriteCandidates, setRewriteCandidates] = useState<RewriteCandidate[]>([]);
+  const [selectedRewriteId, setSelectedRewriteId] = useState("");
   const [isRegeneratingRewrite, setIsRegeneratingRewrite] = useState(false);
   const [rewriteError, setRewriteError] = useState("");
   const [versionNotice, setVersionNotice] = useState("");
@@ -218,7 +224,19 @@ export function OfferPilotWorkspace() {
   const activeProject = profile.projects.find((project) => project.id === activeProjectId) ?? profile.projects[0];
   const match = useMemo(() => matchResumeToJd(profile, activeJob), [profile, activeJob]);
   const fallbackRewrite = useMemo(() => rewriteProjectForJd(activeProject, activeJob, rewriteOptions), [activeProject, activeJob, rewriteOptions]);
-  const rewrite = rewriteDraft ?? fallbackRewrite;
+  const defaultRewriteCandidate = useMemo<RewriteCandidate>(
+    () => ({
+      ...fallbackRewrite,
+      id: "default",
+      label: "默认建议",
+    }),
+    [fallbackRewrite],
+  );
+  const allRewriteCandidates = useMemo(
+    () => [defaultRewriteCandidate, ...rewriteCandidates],
+    [defaultRewriteCandidate, rewriteCandidates],
+  );
+  const rewrite = allRewriteCandidates.find((candidate) => candidate.id === selectedRewriteId) ?? allRewriteCandidates[0];
   const generatedPrep = useMemo(() => generateInterviewPrep(profile, activeJob), [profile, activeJob]);
   const prep = prepDrafts[activeJob.id] ?? generatedPrep;
 
@@ -233,7 +251,8 @@ export function OfferPilotWorkspace() {
   }, []);
 
   useEffect(() => {
-    setRewriteDraft(null);
+    setRewriteCandidates([]);
+    setSelectedRewriteId("default");
     setRewriteError("");
   }, [activeProject.id, activeJob.id, rewriteOptions]);
 
@@ -420,7 +439,13 @@ export function OfferPilotWorkspace() {
         throw new Error("error" in result ? result.error : "重新生成失败。");
       }
 
-      setRewriteDraft(result);
+      const candidate: RewriteCandidate = {
+        ...result,
+        id: createId("rewrite"),
+        label: `候选 ${rewriteCandidates.length + 2}`,
+      };
+      setRewriteCandidates((current) => [candidate, ...current].slice(0, 4));
+      setSelectedRewriteId(candidate.id);
     } catch (error) {
       setRewriteError(error instanceof Error ? error.message : "重新生成失败。");
     } finally {
@@ -428,14 +453,14 @@ export function OfferPilotWorkspace() {
     }
   }
 
-  function applyRewrite() {
+  function applyRewrite(candidate = rewrite) {
     setProfile((current) => {
       const next = cloneProfile(current);
       next.projects = next.projects.map((project) =>
         project.id === activeProject.id
           ? {
               ...project,
-              resumeBullets: rewrite.bullets,
+              resumeBullets: candidate.bullets,
             }
           : project,
       );
@@ -443,12 +468,12 @@ export function OfferPilotWorkspace() {
     });
   }
 
-  function createVersionFromRewrite() {
+  function createVersionFromRewrite(candidate = rewrite) {
     const version = createTailoredResumeVersion({
       profile,
       jd: activeJob,
       project: activeProject,
-      bullets: rewrite.bullets,
+      bullets: candidate.bullets,
     });
     setVersions((current) => [version, ...current]);
     setVersionNotice(`已生成：${version.name}`);
@@ -906,14 +931,14 @@ export function OfferPilotWorkspace() {
                   </button>
                   <button
                     className="inline-flex h-10 items-center gap-2 rounded-md bg-accent px-3 text-sm font-semibold text-white transition hover:bg-accent/90"
-                    onClick={applyRewrite}
+                    onClick={() => applyRewrite()}
                   >
                     <PenLine size={16} />
                     应用建议
                   </button>
                   <button
                     className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-white transition hover:bg-ink/90"
-                    onClick={createVersionFromRewrite}
+                    onClick={() => createVersionFromRewrite()}
                   >
                     <Sparkles size={16} />
                     生成定制版
@@ -960,7 +985,7 @@ export function OfferPilotWorkspace() {
                     {rewriteError}
                   </div>
                 ) : null}
-                <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <div className="mt-5 grid gap-4">
                   <div className="rounded-lg border border-line p-4">
                     <p className="text-xs font-semibold text-muted">原始描述</p>
                     <p className="mt-2 text-sm leading-6 text-ink">{activeProject.rawDescription}</p>
@@ -974,22 +999,77 @@ export function OfferPilotWorkspace() {
                       ))}
                     </ul>
                   </div>
-                  <div className="rounded-lg border border-accent/25 bg-accent/5 p-4">
-                    <p className="text-xs font-semibold text-accent">建议改写</p>
-                    <ul className="mt-2 space-y-2 text-sm leading-6 text-ink">
-                      {rewrite.bullets.map((item) => (
-                        <li className="flex gap-2" key={item}>
-                          <Sparkles className="mt-1 shrink-0 text-accent" size={15} />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="mt-4 text-xs font-semibold text-accent">为什么这样改</p>
-                    <ul className="mt-2 space-y-1 text-sm leading-6 text-muted">
-                      {rewrite.reasoning.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
+                  <div>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-ink">改写候选对比</p>
+                        <p className="mt-1 text-xs text-muted">选择一个候选后，可应用到项目或生成定制简历版本。</p>
+                      </div>
+                      <Pill tone={allRewriteCandidates.length > 1 ? "green" : "neutral"}>{allRewriteCandidates.length} 个候选</Pill>
+                    </div>
+                    <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                      {allRewriteCandidates.map((candidate) => {
+                        const active = rewrite.id === candidate.id;
+                        return (
+                          <div
+                            className={`rounded-lg border p-4 transition ${
+                              active ? "border-accent bg-accent/5" : "border-line bg-white"
+                            }`}
+                            key={candidate.id}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className={`text-xs font-semibold ${active ? "text-accent" : "text-muted"}`}>
+                                {candidate.label}
+                              </p>
+                              <button
+                                className={`h-8 rounded-md border px-3 text-xs font-semibold transition ${
+                                  active
+                                    ? "border-accent bg-accent text-white"
+                                    : "border-line bg-white text-ink hover:border-accent"
+                                }`}
+                                onClick={() => setSelectedRewriteId(candidate.id)}
+                              >
+                                {active ? "已选择" : "选择"}
+                              </button>
+                            </div>
+                            <ul className="mt-3 space-y-2 text-sm leading-6 text-ink">
+                              {candidate.bullets.map((item) => (
+                                <li className="flex gap-2" key={item}>
+                                  <Sparkles className="mt-1 shrink-0 text-accent" size={15} />
+                                  {item}
+                                </li>
+                              ))}
+                            </ul>
+                            <p className="mt-4 text-xs font-semibold text-muted">为什么这样改</p>
+                            <ul className="mt-2 space-y-1 text-sm leading-6 text-muted">
+                              {candidate.reasoning.map((item) => (
+                                <li key={item}>{item}</li>
+                              ))}
+                            </ul>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              <button
+                                className="h-9 rounded-md border border-line bg-white px-3 text-xs font-semibold text-ink transition hover:border-accent"
+                                onClick={() => {
+                                  setSelectedRewriteId(candidate.id);
+                                  applyRewrite(candidate);
+                                }}
+                              >
+                                应用此候选
+                              </button>
+                              <button
+                                className="h-9 rounded-md bg-ink px-3 text-xs font-semibold text-white transition hover:bg-ink/90"
+                                onClick={() => {
+                                  setSelectedRewriteId(candidate.id);
+                                  createVersionFromRewrite(candidate);
+                                }}
+                              >
+                                生成版本
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
                 <div className="mt-5 rounded-lg border border-line p-4">
